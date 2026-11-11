@@ -201,10 +201,26 @@
     return new Response(stream).text();
   }
 
+  async function loadEmbeddedCatalog() {
+    const embedded = document.getElementById("catalog-data");
+    const b64 = embedded?.textContent?.trim();
+    if (!b64) return null;
+    setLoaderStatus("Розпаковую каталог…", "Дані вже в сторінці — майже готово");
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const text = await decompressGzip(bytes);
+    return JSON.parse(text);
+  }
+
   async function loadCatalogJson() {
-    // Prefer gzip (~1.5 MB) for GitHub Pages; arrayBuffer is more reliable than res.body streams.
+    // 1) Embedded (GitHub Pages standalone) — no extra network request
+    const embedded = await loadEmbeddedCatalog();
+    if (embedded) return embedded;
+
+    // 2) gzip (~1.5 MB), then raw JSON fallback for local serve.py
     setLoaderStatus("Завантажую каталог…", "Тягну стиснуті дані (~1.5 МБ)");
-    const gzRes = await fetch("./data/catalog.min.json.gz", { cache: "force-cache" });
+    const gzRes = await fetch("./data/catalog.min.json.gz", { cache: "no-cache" });
     if (gzRes.ok) {
       const bytes = await gzRes.arrayBuffer();
       setLoaderStatus("Розпаковую каталог…", "Готую зрозумілий вигляд для 18 тисяч позицій");
@@ -213,7 +229,7 @@
       return JSON.parse(text);
     }
     setLoaderStatus("Завантажую каталог…", "Запасний варіант без стиснення (повільніше)");
-    const res = await fetch("./data/catalog.min.json");
+    const res = await fetch("./data/catalog.min.json", { cache: "no-cache" });
     if (!res.ok) throw new Error(`Не вдалося завантажити дані: ${res.status}`);
     return res.json();
   }
