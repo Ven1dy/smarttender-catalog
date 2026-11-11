@@ -4,7 +4,11 @@
 
 ## GitHub Pages
 
-Онлайн-версія: після деплою відкривається з кореня репозиторію Pages (`/web` збирається автоматично).
+Онлайн: https://ven1dy.github.io/smarttender-catalog/
+
+Репозиторій: https://github.com/Ven1dy/smarttender-catalog
+
+Деплой: при кожному push у `main` Actions публікує папку `web/`.
 
 ## Локальний запуск
 
