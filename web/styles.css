@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   /* Нейтральна база */
   --bg: #f4f5f7;
   --panel: #ffffff;
@@ -821,7 +821,14 @@ body:not(.mode-ksmo) .how-ksmo { display: none; }
 }
 .seg-btn.is-on.tone-ok { color: var(--ok); }
 .seg-btn.is-on.tone-warn { color: var(--warn); }
-.seg-count { font-family: var(--mono); font-size: var(--fs-xs); font-weight: 400; opacity: 0.8; }
+.seg-count {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  min-width: var(--seg-count-w, 0);
+}
 
 /* фасети чіпами: прозорий нативний select поверх чіпа */
 .facet-bar { display: flex; align-items: center; gap: 10px; min-width: 0; }

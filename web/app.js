@@ -112,9 +112,13 @@
   const FORMS_TYPES = ["тип", "типи", "типів"];
   const FORMS_KSMO = ["код KSMO", "коди KSMO", "кодів KSMO"];
 
-  // Перемикач статусу з кількістю: [{value, label, count}]
-  function renderSeg(el, options, current) {
+  // Перемикач статусу з кількістю: [{value, label, count}].
+  // maxCount — найбільше можливе число в цьому контексті: під нього резервуємо ширину
+  // лічильників, щоб перемикач (і поле фільтра поруч) не стрибали при зміні фільтрів.
+  function renderSeg(el, options, current, maxCount) {
     if (!el) return;
+    const digits = fmt(Math.max(maxCount || 0, ...options.map((o) => o.count || 0))).length;
+    el.style.setProperty("--seg-count-w", `${digits}ch`);
     el.innerHTML = options
       .map((o) => {
         const on = o.value === current;
@@ -1387,7 +1391,8 @@
         { value: "active", label: "Активні", count: activeCount, tone: "ok" },
         { value: "cancelled", label: "Скасовані", count: base.length - activeCount, tone: "warn" },
       ],
-      state.itemStatus
+      state.itemStatus,
+      total
     );
     const showGroup = !state.group;
     els.resultCount.textContent = countLabel(items.length, total, FORMS_ITEMS);
@@ -1463,6 +1468,9 @@
     // лічильники статусу — з урахуванням текстового фільтра, але без самого статусу
     const byStatus = filteredKsmoEntries({ ignoreStatus: true });
     const countOf = (s) => byStatus.filter((e) => e.status === s).length;
+    const total = state.category
+      ? filteredKsmoEntries({ ignoreStatus: true, ignoreText: true }).length
+      : byStatus.length;
     renderSeg(
       els.ksmoStatusSeg,
       [
@@ -1471,11 +1479,9 @@
         { value: "mixed", label: "Змішані", count: countOf("mixed") },
         { value: "cancelled", label: "Скасовані", count: countOf("cancelled"), tone: "warn" },
       ],
-      state.ksmoStatus
+      state.ksmoStatus,
+      total
     );
-    const total = state.category
-      ? filteredKsmoEntries({ ignoreStatus: true, ignoreText: true }).length
-      : byStatus.length;
     els.resultCount.textContent = countLabel(entries.length, total, FORMS_KSMO);
     els.empty.hidden = slice.length > 0;
     els.rows.innerHTML = slice
