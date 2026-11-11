@@ -15,7 +15,6 @@
     sort: "name",
     facetFilters: {},
     selectedKmat: null,
-    showCodes: false,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -23,7 +22,6 @@
     loader: $("loader"),
     search: $("search"),
     searchClear: $("search-clear"),
-    showCodes: $("show-codes"),
     steps: $("steps"),
     homeTitle: $("home-title"),
     homeMeta: $("home-meta"),
@@ -188,13 +186,33 @@
     document.body.classList.toggle("mode-ksmo", state.mode === "ksmo");
   }
 
-  async function loadCatalogJson() {
-    // Prefer gzip (~1.5 MB) for GitHub Pages / slow networks; fall back to raw JSON.
-    const gzRes = await fetch("./data/catalog.min.json.gz");
-    if (gzRes.ok && typeof DecompressionStream !== "undefined") {
-      const stream = gzRes.body.pipeThrough(new DecompressionStream("gzip"));
-      return JSON.parse(await new Response(stream).text());
+  function setLoaderStatus(title, detail) {
+    const strong = els.loader.querySelector("strong");
+    const p = els.loader.querySelector("p");
+    if (strong) strong.textContent = title;
+    if (p) p.textContent = detail;
+  }
+
+  async function decompressGzip(bytes) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("Потрібен сучасний браузер (Chrome, Edge, Firefox)");
     }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new Response(stream).text();
+  }
+
+  async function loadCatalogJson() {
+    // Prefer gzip (~1.5 MB) for GitHub Pages; arrayBuffer is more reliable than res.body streams.
+    setLoaderStatus("Завантажую каталог…", "Тягну стиснуті дані (~1.5 МБ)");
+    const gzRes = await fetch("./data/catalog.min.json.gz", { cache: "force-cache" });
+    if (gzRes.ok) {
+      const bytes = await gzRes.arrayBuffer();
+      setLoaderStatus("Розпаковую каталог…", "Готую зрозумілий вигляд для 18 тисяч позицій");
+      const text = await decompressGzip(bytes);
+      setLoaderStatus("Читаю каталог…", "Майже готово");
+      return JSON.parse(text);
+    }
+    setLoaderStatus("Завантажую каталог…", "Запасний варіант без стиснення (повільніше)");
     const res = await fetch("./data/catalog.min.json");
     if (!res.ok) throw new Error(`Не вдалося завантажити дані: ${res.status}`);
     return res.json();
@@ -1350,11 +1368,6 @@
     e.preventDefault();
     if (openEl.dataset.openKsmo) openKsmo(openEl.dataset.openKsmo);
     else if (openEl.dataset.openKmat) openKmat(openEl.dataset.openKmat);
-  });
-
-  els.showCodes.addEventListener("change", () => {
-    state.showCodes = els.showCodes.checked;
-    document.body.classList.toggle("show-codes", state.showCodes);
   });
 
   loadData().catch((err) => {
