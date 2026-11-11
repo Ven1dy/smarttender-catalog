@@ -11,3 +11,6 @@ Thumbs.db
 .vscode/
 web/standalone.html
 
+
+# Збірка pack_standalone.py (для пошти)
+Каталог SmartTender.html

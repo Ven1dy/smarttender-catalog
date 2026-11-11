@@ -6,7 +6,7 @@
   <title>Каталог SmartTender — зрозумілий перегляд</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -14,10 +14,7 @@
     <header class="topbar">
       <button type="button" class="brand" id="brand-home" title="На головну">
         <div class="brand-mark">ST</div>
-        <div>
-          <div class="brand-title">Каталог номенклатури</div>
-          <div class="brand-sub">SmartTender · простою мовою</div>
-        </div>
+        <div class="brand-title">Каталог номенклатури</div>
       </button>
 
       <label class="search-box">
@@ -34,58 +31,48 @@
             Довідник KSMO
           </button>
         </div>
-        <label class="tech-toggle" title="Показати службові коди SmartTender">
-          <input type="checkbox" id="show-codes" />
-          <span>Коди</span>
-        </label>
       </div>
     </header>
 
-    <nav class="steps" id="steps" aria-label="Кроки">
-      <button type="button" class="step active" data-goto="home">
-        <span class="step-num">1</span>
-        <strong data-step-label="home">Категорія</strong>
-      </button>
-      <div class="step-arrow" aria-hidden="true">→</div>
-      <button type="button" class="step" data-goto="groups" disabled>
-        <span class="step-num">2</span>
-        <strong data-step-label="groups">Тип</strong>
-      </button>
-      <div class="step-arrow" aria-hidden="true">→</div>
-      <button type="button" class="step" data-goto="items" disabled>
-        <span class="step-num">3</span>
-        <strong data-step-label="items">Позиція</strong>
-      </button>
-    </nav>
-
-    <main class="stage">
+    <main class="stage" id="stage">
       <!-- HOME -->
-      <section id="view-home" class="view">
-        <details class="how-it-works">
-          <summary>
-            <span class="how-btn-icon" aria-hidden="true">?</span>
-            <span>Як це працює?</span>
-          </summary>
-          <div class="explain-card">
+      <section id="view-home" class="view panel-card">
+        <div class="card-tools">
+          <div class="tools-row home-tools">
+            <div class="tools-title">
+              <div class="title-line">
+                <h1 id="home-title">Оберіть категорію</h1>
+                <span class="count-note" id="home-meta">Завантаження…</span>
+              </div>
+            </div>
+            <label class="tool-field search-field home-filter">
+              <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input id="category-filter" type="search" placeholder="Фільтр категорій: назва або код…" autocomplete="off" aria-label="Фільтр категорій" />
+            </label>
+            <button type="button" class="how-toggle" id="how-toggle" aria-expanded="false" aria-controls="how-it-works">
+              <span class="how-btn-icon" aria-hidden="true">?</span>
+              <span>Як це працює?</span>
+            </button>
+          </div>
+        </div>
+        <div class="panel-body">
+        <div class="how-it-works" id="how-it-works" hidden>
+
+          <!-- Режим KSM -->
+          <div class="explain-card how-ksm">
             <div>
-              <h2>Простими словами</h2>
+              <h2>KSM — уся номенклатура SmartTender</h2>
               <p class="muted">
-                Тут зібрані всі товари з SmartTender. Шукайте у три кроки —
-                або просто введіть слово в пошук зверху.
+                Кожна позиція має код KMAT і набір фасетів: розмір, матеріал, вид тощо.
+                Знайдіть потрібну за три кроки або одразу введіть назву чи код у пошук зверху.
               </p>
-              <ol class="how-steps">
-                <li><strong>Категорія</strong> — широкий розділ, наприклад «Упаковка» чи «Метали».</li>
-                <li><strong>Тип</strong> — вже конкретніше: «Хліб», «Підшипники», «Стрічки».</li>
-                <li><strong>Позиція</strong> — готовий товар зі списку. За потреби уточніть розмір, матеріал тощо.</li>
-              </ol>
-              <p class="muted tiny how-example-label">Приклад шляху — шукаємо пакет для хліба:</p>
-              <div class="simple-example" aria-label="Приклад пошуку">
+              <div class="simple-example" aria-label="Приклад: шукаємо пакет для хліба">
                 <div class="ex-step">
                   <span class="ex-num">1</span>
                   <div>
                     <span class="ex-label">категорія</span>
-                    <strong>Упаковка</strong>
-                    <span class="ex-hint">широкий розділ каталогу</span>
+                    <strong>Упаковка под продукты</strong>
+                    <span class="ex-hint">широкий розділ</span>
                   </div>
                 </div>
                 <div class="ex-arrow" aria-hidden="true">→</div>
@@ -93,8 +80,8 @@
                   <span class="ex-num">2</span>
                   <div>
                     <span class="ex-label">тип</span>
-                    <strong>Хліб</strong>
-                    <span class="ex-hint">конкретна група товарів</span>
+                    <strong>Хлеб</strong>
+                    <span class="ex-hint">890 позицій</span>
                   </div>
                 </div>
                 <div class="ex-arrow" aria-hidden="true">→</div>
@@ -102,103 +89,146 @@
                   <span class="ex-num">3</span>
                   <div>
                     <span class="ex-label">позиція</span>
-                    <strong>Пакет для хліба 210×485, плівка 25 мкм</strong>
-                    <span class="ex-hint">готова картка; розмір і матеріал можна уточнити фільтрами</span>
+                    <strong>Пакет Хліб «Прибалтійський Темний», 210х310, CPP, 30 мкм</strong>
+                    <span class="ex-hint mono">KMAT P17110062H3ХB8K</span>
                   </div>
                 </div>
               </div>
+
+              <h3 class="how-sub">Над таблицею позицій</h3>
+              <dl class="how-legend">
+                <div>
+                  <dt>
+                    <span class="seg is-demo" aria-hidden="true">
+                      <span class="seg-btn">Усі <span class="seg-count">802</span></span>
+                      <span class="seg-btn is-on tone-ok">Активні <span class="seg-count">79</span></span>
+                      <span class="seg-btn">Скасовані <span class="seg-count">723</span></span>
+                    </span>
+                  </dt>
+                  <dd>Статус. Число біля кнопки — скільки позицій буде, якщо її натиснути (з урахуванням інших фільтрів).</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="facet-chip is-on is-demo" aria-hidden="true">
+                      <span class="facet-chip-text">Вид полимера: <b>CPP</b></span>
+                      <span class="facet-chip-clear">✕</span>
+                    </span>
+                  </dt>
+                  <dd>Фасет. Клік — обрати значення, ✕ — скинути. «+N фасетів» показує решту.</dd>
+                </div>
+                <div>
+                  <dt><span class="count-note">79 з 890</span></dt>
+                  <dd>Скільки позицій лишилось після фільтрів і скільки всього в типі.</dd>
+                </div>
+                <div>
+                  <dt><span class="how-key">⇅ За назвою</span></dt>
+                  <dd>Сортування: за назвою, кодом KMAT або групою.</dd>
+                </div>
+              </dl>
             </div>
             <aside class="tips">
-              <h3>Корисні поради</h3>
+              <h3>Корисно знати</h3>
               <ul>
-                <li>Не знаєте, звідки почати — скористайтеся <strong>пошуком</strong>.</li>
-                <li>Список довгий? Оберіть <strong>властивості</strong> зверху — залишиться лише потрібне.</li>
-                <li>Натисніть рядок у таблиці — справа відкриється картка з деталями.</li>
-                <li><strong>Коди</strong> потрібні лише для роботи зі SmartTender. За замовчуванням їх можна не вмикати.</li>
+                <li><strong>Пошук</strong> зверху шукає по всьому каталогу: назва, код KMAT, ГОСТ. Кілька слів — знайдуться позиції, де є всі.</li>
+                <li><strong>Рядок таблиці</strong> — клік відкриває справа картку позиції з усіма фасетами та кодами.</li>
+                <li><strong>Скасовані</strong> позиції більше не використовуються. Щоб бачити лише робочі — оберіть «Активні».</li>
+                <li><strong>←</strong> або шлях «Усі категорії › …» над назвою повертають на крок назад.</li>
+                <li><strong>KSM / KSMO</strong> у шапці перемикає на довідник кодів 1С.</li>
               </ul>
             </aside>
           </div>
-        </details>
 
-        <div class="block-head">
-          <h2 id="home-title">Оберіть категорію</h2>
-          <p class="muted" id="home-meta">Завантаження…</p>
+          <!-- Режим KSMO -->
+          <div class="explain-card how-ksmo">
+            <div>
+              <h2>KSMO — коди 1С і підвʼязані до них KSM</h2>
+              <p class="muted">
+                KSMO — код номенклатури в 1С. За одним кодом може стояти кілька позицій KSM:
+                наприклад, стара скасована і нова активна. Тут видно, які саме.
+              </p>
+              <div class="simple-example" aria-label="Приклад: код KSMO та його KSM">
+                <div class="ex-step">
+                  <span class="ex-num">1</span>
+                  <div>
+                    <span class="ex-label">категорія</span>
+                    <strong>Упаковка под продукты</strong>
+                    <span class="ex-hint">7 206 кодів KSMO</span>
+                  </div>
+                </div>
+                <div class="ex-arrow" aria-hidden="true">→</div>
+                <div class="ex-step ksmo">
+                  <span class="ex-num">2</span>
+                  <div>
+                    <span class="ex-label">KSMO · таблиця зліва</span>
+                    <strong>Пакет Батон нарізний київський, 0,25 кг</strong>
+                    <span class="ex-hint mono">код 1С 00000005212</span>
+                  </div>
+                </div>
+                <div class="ex-arrow" aria-hidden="true">→</div>
+                <div class="ex-step result">
+                  <span class="ex-num">3</span>
+                  <div>
+                    <span class="ex-label">KSM · таблиця справа</span>
+                    <strong>16 позицій: 1 активна, 15 скасованих</strong>
+                    <span class="ex-hint">тому статус коду — «змішана»</span>
+                  </div>
+                </div>
+              </div>
+
+              <h3 class="how-sub">Статус у таблиці KSMO</h3>
+              <dl class="how-legend">
+                <div>
+                  <dt><span class="pill pill-status pill-ok">активна</span></dt>
+                  <dd>Усі підвʼязані KSM активні.</dd>
+                </div>
+                <div>
+                  <dt><span class="pill pill-status pill-neutral">змішана</span></dt>
+                  <dd>Є і активні, і скасовані KSM. Зазвичай це заміна старої позиції на нову.</dd>
+                </div>
+                <div>
+                  <dt><span class="pill pill-status pill-warn">скасована</span></dt>
+                  <dd>Усі підвʼязані KSM скасовані.</dd>
+                </div>
+              </dl>
+            </div>
+            <aside class="tips">
+              <h3>Корисно знати</h3>
+              <ul>
+                <li><strong>Зліва</strong> — коди KSMO: фільтр за назвою чи кодом 1С і перемикач статусу з кількістю.</li>
+                <li><strong>Справа</strong> — KSM обраного коду. Свій перемикач, наприклад лише «Активні».</li>
+                <li><strong>Пошук</strong> зверху в цьому режимі шукає коди KSMO за назвою або кодом 1С.</li>
+                <li><strong>KSM / KSMO</strong> у шапці повертає до каталогу позицій.</li>
+              </ul>
+            </aside>
+          </div>
         </div>
+
         <div id="category-grid" class="card-grid"></div>
+        </div>
       </section>
 
       <!-- GROUPS / KSMO LIST -->
-      <section id="view-groups" class="view" hidden>
-        <div class="view-head">
-          <button type="button" class="back-btn" id="back-to-home" title="До всіх категорій">←</button>
-          <div class="view-head-main">
-            <h1 id="groups-title">Типи в розділі</h1>
-            <p id="groups-sub" class="muted"></p>
-          </div>
-          <div class="groups-toolbar">
-            <label class="inline-filter compact" id="ksmo-status-wrap" hidden>
-              <select id="ksmo-status" aria-label="Статус KSMO">
-                <option value="">Усі статуси</option>
-                <option value="active">Активні</option>
-                <option value="mixed">Змішані</option>
-                <option value="cancelled">Скасовані</option>
-              </select>
-            </label>
-            <label class="inline-filter compact">
-              <input id="group-filter" type="search" placeholder="Фільтр типів…" />
-            </label>
-          </div>
-        </div>
-        <div id="group-grid" class="card-grid"></div>
-      </section>
-
-      <!-- ITEMS -->
-      <section id="view-items" class="view" hidden>
-        <div class="view-head">
-          <button type="button" class="back-btn" id="back-to-groups" title="Назад">←</button>
-          <div class="view-head-main">
-            <div class="crumbs" id="crumbs"></div>
-            <div class="title-row">
-              <h1 id="items-title">Позиції</h1>
-              <p id="items-sub" class="muted"></p>
+      <section id="view-groups" class="view panel-card" hidden>
+        <div class="card-tools">
+          <div class="tools-row groups-tools">
+            <div class="tools-lead">
+              <button type="button" class="back-btn" id="back-to-home" title="До всіх категорій" aria-label="До всіх категорій">←</button>
+              <div class="tools-title">
+                <div class="crumbs"><button type="button" data-crumb="home">Усі категорії</button></div>
+                <div class="title-line">
+                  <span class="title-code" id="groups-code" hidden></span>
+                  <h1 id="groups-title">Типи в розділі</h1>
+                  <span class="count-note" id="groups-count"></span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="toolbar-actions">
-            <label class="sort-label" id="item-status-wrap">
-              <select id="item-status" aria-label="Статус позиції">
-                <option value="">Усі статуси</option>
-                <option value="active">Активні</option>
-                <option value="cancelled">Скасовані</option>
-              </select>
+            <label class="tool-field search-field groups-filter">
+              <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input id="group-filter" type="search" placeholder="Фільтр типів: назва або код…" autocomplete="off" aria-label="Фільтр типів" />
             </label>
-            <label class="sort-label">
-              <select id="sort" aria-label="Сортування">
-                <option value="name">За назвою</option>
-                <option value="kmat">За кодом</option>
-                <option value="group">За групою / кількістю</option>
-              </select>
-            </label>
-            <div id="result-count" class="pill">—</div>
-          </div>
-        </div>
-
-        <section class="filters" id="filters" hidden>
-          <div class="filters-head">
-            <strong>Властивості</strong>
-            <button type="button" class="linkish" id="clear-facets">скинути</button>
-          </div>
-          <div id="facet-filters" class="facet-filters"></div>
-        </section>
-
-        <div class="content" id="items-content">
-          <div class="table-wrap" id="main-table-wrap">
-            <div class="panel-label" id="main-table-label" hidden>KSMO · код інтеграції 1С</div>
-            <div class="panel-toolbar" id="ksmo-panel-filters" hidden>
-              <label class="panel-filter grow">
-                <input id="ksmo-name-filter" type="search" placeholder="Фільтр за назвою / кодом…" autocomplete="off" />
-              </label>
-              <label class="panel-filter">
-                <select id="ksmo-panel-status" aria-label="Статус KSMO">
+            <div class="tools-actions">
+              <label class="tool-field" id="ksmo-status-wrap" hidden>
+                <select id="ksmo-status" aria-label="Статус KSMO">
                   <option value="">Усі статуси</option>
                   <option value="active">Активні</option>
                   <option value="mixed">Змішані</option>
@@ -206,21 +236,70 @@
                 </select>
               </label>
             </div>
-            <table id="main-table">
-              <thead id="main-thead">
-                <tr>
-                  <th class="col-status">Статус</th>
-                  <th>Що це</th>
-                  <th>Тип / група</th>
-                  <th class="col-int">Код 1С</th>
-                  <th class="codes-only">Код позиції</th>
-                  <th>Од.</th>
-                  <th title="Кількість характеристик у позиції">Хар.</th>
-                </tr>
-              </thead>
-              <tbody id="rows"></tbody>
-            </table>
-            <div id="empty" class="empty" hidden>Нічого не знайдено. Спробуйте інше слово або скиньте властивості.</div>
+          </div>
+        </div>
+        <div id="group-grid" class="card-grid panel-scroll"></div>
+      </section>
+
+      <!-- ITEMS -->
+      <section id="view-items" class="view" hidden>
+        <div class="content" id="items-content">
+          <div class="table-card" id="main-card">
+            <div class="card-tools">
+              <div class="tools-row">
+                <button type="button" class="back-btn" id="back-to-groups" title="Назад" aria-label="Назад">←</button>
+                <div class="tools-title">
+                  <div class="crumbs" id="crumbs"></div>
+                  <div class="title-line">
+                    <span class="title-code" id="items-code" hidden></span>
+                    <h1 id="items-title">Позиції</h1>
+                    <span class="count-note" id="result-count">—</span>
+                  </div>
+                  <p id="items-sub" class="tools-sub"></p>
+                </div>
+                <label class="tool-field search-field items-filter" id="item-filter-wrap">
+                  <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                  <input id="item-filter" type="search" placeholder="Фільтр позицій: назва або код…" autocomplete="off" aria-label="Фільтр позицій" />
+                </label>
+                <label class="tool-field search-field items-filter" id="ksmo-panel-filters" hidden>
+                  <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                  <input id="ksmo-name-filter" type="search" placeholder="Фільтр KSMO: назва або код 1С…" autocomplete="off" aria-label="Фільтр KSMO" />
+                </label>
+                <div class="tools-actions">
+                  <div class="seg" id="item-status-seg" role="group" aria-label="Статус позиції"></div>
+                  <div class="seg" id="ksmo-status-seg" role="group" aria-label="Статус KSMO" hidden></div>
+                  <label class="tool-field sort-field" title="Сортування">
+                    <span aria-hidden="true">⇅</span>
+                    <select id="sort" aria-label="Сортування">
+                      <option value="name">За назвою</option>
+                      <option value="kmat">За кодом</option>
+                      <option value="group">За групою / кількістю</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="facet-bar" id="filters" hidden>
+                <div id="facet-filters" class="facet-chips"></div>
+                <button type="button" class="linkish" id="clear-facets" hidden>Скинути всі</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="main-table-wrap">
+              <table id="main-table">
+                <thead id="main-thead">
+                  <tr>
+                    <th class="col-status">Статус</th>
+                    <th>Що це</th>
+                    <th>Тип / група</th>
+                    <th class="col-int">Код 1С</th>
+                    <th class="codes-only">Код позиції</th>
+                    <th>Од.</th>
+                    <th title="Кількість фасетів у позиції">Фас.</th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+              <div id="empty" class="empty" hidden>Нічого не знайдено. Спробуйте інше слово або скиньте фасети.</div>
+            </div>
           </div>
 
           <aside class="detail" id="detail">
@@ -230,31 +309,39 @@
             </div>
           </aside>
 
-          <div class="table-wrap members-wrap" id="members-wrap" hidden>
-            <div class="panel-label">Підвʼязані KSM</div>
-            <div class="panel-toolbar" id="member-panel-filters" hidden>
-              <label class="panel-filter">
-                <select id="member-status" aria-label="Статус KSM">
-                  <option value="">Усі статуси</option>
-                  <option value="active">Активні</option>
-                  <option value="cancelled">Скасовані</option>
-                </select>
-              </label>
+          <div class="table-card members-card" id="members-wrap" hidden>
+            <div class="card-tools">
+              <div class="tools-row">
+                <div class="tools-title">
+                  <div class="crumbs">Підвʼязані KSM</div>
+                  <div class="title-line">
+                    <h2 id="members-title">Оберіть KSMO зліва</h2>
+                    <span class="count-note" id="members-count"></span>
+                  </div>
+                  <p id="members-sub" class="tools-sub mono"></p>
+                </div>
+              </div>
+              <div class="tools-row">
+                <div class="seg" id="member-status-seg" role="group" aria-label="Статус KSM"></div>
+              </div>
             </div>
-            <table>
-              <thead>
-                <tr>
-                  <th class="col-status">Статус</th>
-                  <th>Найменування</th>
-                  <th>Група</th>
-                  <th>Од.</th>
-                  <th title="Кількість характеристик">Хар.</th>
-                  <th class="codes-only">Код позиції</th>
-                </tr>
-              </thead>
-              <tbody id="member-rows"></tbody>
-            </table>
-            <div id="members-empty" class="empty" hidden>Оберіть KSMO зліва — тут зʼявляться підвʼязані найменування KSM.</div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="col-status">Статус</th>
+                    <th>Найменування</th>
+                    <th>Група</th>
+                    <th>Од.</th>
+                    <th title="Кількість фасетів">Фас.</th>
+                    <th class="codes-only">Код позиції</th>
+                    <th class="col-go"><span class="sr-only">Відкрити в каталозі KSM</span></th>
+                  </tr>
+                </thead>
+                <tbody id="member-rows"></tbody>
+              </table>
+              <div id="members-empty" class="empty" hidden>Оберіть KSMO зліва — тут зʼявляться підвʼязані найменування KSM.</div>
+            </div>
           </div>
         </div>
       </section>

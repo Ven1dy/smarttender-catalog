@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """Сжимает Каталог.json в лёгкий набор для веб-просмотрщика."""
+import gzip
 import json
 import re
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-ROOT = Path(r"c:\Projects\фигня для смарттендер")
+ROOT = Path(__file__).resolve().parent
 # Актуальне джерело: оновлений експорт (fallback — старий Каталог.json)
 SRC = ROOT / "Каталог оновлен.json"
 if not SRC.exists():
@@ -393,7 +395,68 @@ def display_group_name(raw_name: str, sample_names: list[str]) -> tuple[str, str
     return raw, None
 
 
+# Поля позиції, які можуть бути null: у файлі не пишемо, сайт відновлює як null.
+NULLABLE_ITEM_FIELDS = ("short", "gost", "descr", "unit")
+
+
+def compact_payload(payload: dict) -> dict:
+    """Прибирає дублікати перед записом (−30% розміру). Сайт відновлює їх у hydrate() в app.js.
+
+    - позиція: category_name, group_name, group_raw — беруться з categories/groups;
+      chars[].name — з facets; null-поля не пишуться; unit_code сайт не використовує.
+    - KSMO: category_name — з categories; items — лише список kmat (решта — з позиції).
+    """
+    cat_names = {c["code"]: c["name"] for c in payload["categories"]}
+    groups = {g["code"]: g for g in payload["groups"]}
+    facet_names = {f["code"]: f["name"] for f in payload["facets"]}
+    by_kmat = {it["kmat"]: it for it in payload["items"]}
+
+    items = []
+    for it in payload["items"]:
+        g = groups[it["group"]]
+        assert it["category_name"] == cat_names[it["category"]], it["kmat"]
+        assert it["group_name"] == g["name"] and it["group_raw"] == g["raw_name"], it["kmat"]
+        out = {}
+        for key, value in it.items():
+            if key in ("category_name", "group_name", "group_raw", "unit_code"):
+                continue
+            if key in NULLABLE_ITEM_FIELDS and value is None:
+                continue
+            if key == "chars":
+                chars = []
+                for c in value:
+                    assert c["name"] == facet_names[c["code"]], (it["kmat"], c["code"])
+                    chars.append({k: v for k, v in c.items() if k != "name"})
+                value = chars
+            out[key] = value
+        items.append(out)
+
+    ksmo_entries = []
+    for e in payload["ksmo_entries"]:
+        assert e.get("category_name") == cat_names.get(e.get("category")), e["code"]
+        members = []
+        for m in e["items"]:
+            full = by_kmat[m["kmat"]]
+            assert (
+                m["name"] == full["name"]
+                and m["cancelled"] == bool(full.get("cancelled"))
+                and m["group"] == full["group"]
+                and m["group_name"] == full["group_name"]
+            ), (e["code"], m["kmat"])
+            members.append(m["kmat"])
+        out = {k: v for k, v in e.items() if k != "category_name"}
+        out["items"] = members
+        ksmo_entries.append(out)
+
+    meta = dict(payload["meta"], compact=1)
+    return {**payload, "meta": meta, "items": items, "ksmo_entries": ksmo_entries}
+
+
 def main() -> None:
+    # Консоль Windows (cp1251) падає на символах на кшталт «→» у логах
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     print("Loading source...")
     with SRC.open("r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -626,15 +689,23 @@ def main() -> None:
 
     out_path = OUT / "catalog.min.json"
     print(f"Writing {out_path}...")
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+    raw = json.dumps(
+        compact_payload(payload), ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    out_path.write_bytes(raw)
+
+    gz_path = OUT / "catalog.min.json.gz"
+    print(f"Writing {gz_path}...")
+    with gzip.open(gz_path, "wb", compresslevel=9) as f:
+        f.write(raw)
 
     size_mb = out_path.stat().st_size / (1024 * 1024)
+    gz_mb = gz_path.stat().st_size / (1024 * 1024)
     print(
         f"Done: {len(slim_items)} items, {len(groups_out)} groups, "
         f"{len(facets_out)} facets, {len(ksmo_entries)} ksmo"
     )
-    print(f"Size: {size_mb:.1f} MB")
+    print(f"Size: {size_mb:.1f} MB  gzip: {gz_mb:.1f} MB")
 
     # быстрый sanity-check подписей
     print("\nSample enriched groups:")

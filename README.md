@@ -22,10 +22,9 @@ python serve.py            # http://127.0.0.1:8765/
 | Шлях | Опис |
 |------|------|
 | `web/` | Сайт для перегляду (деплоїться на Pages) |
-| `Каталог.json` / `Каталог оновлен.json` | Вихідні дані |
+| `Каталог оновлен.json` | Вихідні дані |
 | `build_web_data.py` | Збірка `web/data/catalog.min.json(.gz)` |
-| `pack_standalone.py` | Один HTML з вбудованим каталогом |
-| `ksmo_*.csv` / `ksmo_match_report.json` | Звіти зіставлення KSM ↔ KSMO |
+| `pack_standalone.py` | Один HTML з вбудованим каталогом (`Каталог SmartTender.html`, не в git) |
 
 ## Технології
 
