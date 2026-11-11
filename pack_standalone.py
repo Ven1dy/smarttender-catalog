@@ -16,9 +16,9 @@ GZ_PATH = WEB / "data" / "catalog.min.json.gz"
 
 
 def main() -> None:
-    html = (WEB / "index.html").read_text(encoding="utf-8")
-    css = (WEB / "styles.css").read_text(encoding="utf-8")
-    js = (WEB / "app.js").read_text(encoding="utf-8")
+    html = (WEB / "index.html").read_text(encoding="utf-8-sig")
+    css = (WEB / "styles.css").read_text(encoding="utf-8-sig")
+    js = (WEB / "app.js").read_text(encoding="utf-8-sig")
 
     print("Gzip catalog...")
     raw = JSON_PATH.read_bytes()
