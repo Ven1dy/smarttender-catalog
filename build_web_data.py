@@ -499,7 +499,6 @@ def main() -> None:
                 "category_name": cat["name"],
                 "count": 0,
                 "facet_codes": set(),
-                "sample_names": names_by_group.get(gcode, [])[:3],
             }
         groups[gcode]["count"] += 1
 
@@ -620,7 +619,6 @@ def main() -> None:
                 "category_name": g["category_name"],
                 "count": g["count"],
                 "facet_codes": sorted(g["facet_codes"]),
-                "sample_names": g["sample_names"],
             }
         )
 
@@ -639,43 +637,21 @@ def main() -> None:
                     "groups": sorted(v["groups"]),
                 }
             )
-        group_codes = sorted(f["groups"])
         facets_out.append(
             {
                 "code": f["code"],
                 "name": f["name"],
                 "uses": f["uses"],
-                # До яких груп (сімейств SKU) прив’язаний фасет
-                "groups": group_codes,
-                "group_count": len(group_codes),
-                # Скільки унікальних SKU мають цей фасет
-                "sku_count": len(f["kmats"]),
                 "values": values,
             }
         )
 
     meta = {
         "generated_at": (raw.get("meta") or {}).get("generated_at"),
-        "source_stats": (raw.get("meta") or {}).get("stats"),
         "items": len(slim_items),
         "groups": len(groups_out),
         "facets": len(facets_out),
         "categories": len(categories),
-        "conflicts": (raw.get("meta") or {}).get("conflicts") or [],
-        "legend": {
-            "category": "Крупный раздел по префиксу кода (P1, M6…). Это не поле SmartTender, а удобная навигация.",
-            "group": "Номенклатурная группа SmartTender. Код группы — начало кода позиции (KMAT).",
-            "kmat": "Полный код позиции = код группы + значения фасетов.",
-            "facet": "Характеристика позиции (размер, материал, фасовка и т.д.).",
-            "facet.groups": "Коды номенклатурных групп (семейств SKU), где встречается фасет.",
-            "facet.sku_count": "Сколько уникальных SKU (kmat) содержат этот фасет.",
-            "related_doc": "Позиция, чья текущая назва збігається з n_res_doc (документна/попередня назва).",
-            "related_int": "Інші SKU з тим самим integrationCode у тій самій сімʼї коду.",
-            "ksmo_entries": "Довідник KSMO: один запис = один integrationCode (код 1С) з членами KSM.",
-            "ksmo.status": "active — є живі KSM; cancelled — усі скасовані; mixed — і ті й ті.",
-        },
-        "ksmo_links": link_stats,
-        "ksmo_directory": ksmo_stats,
     }
 
     payload = {

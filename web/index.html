@@ -109,6 +109,16 @@
                 </div>
                 <div>
                   <dt>
+                    <span class="seg is-demo" aria-hidden="true">
+                      <span class="seg-btn">Усі <span class="seg-count">890</span></span>
+                      <span class="seg-btn is-on tone-ok">Збіг <span class="seg-count">120</span></span>
+                      <span class="seg-btn tone-warn">Ні <span class="seg-count">770</span></span>
+                    </span>
+                  </dt>
+                  <dd>Збіг назви з фасетами. У таблиці колонка «Збіг»: ✓ збіг, ≈ частково (N/M), ✕ ні.</dd>
+                </div>
+                <div>
+                  <dt>
                     <span class="facet-chip is-on is-demo" aria-hidden="true">
                       <span class="facet-chip-text">Вид полимера: <b>CPP</b></span>
                       <span class="facet-chip-clear">✕</span>
@@ -226,16 +236,6 @@
               <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
               <input id="group-filter" type="search" placeholder="Фільтр типів: назва або код…" autocomplete="off" aria-label="Фільтр типів" />
             </label>
-            <div class="tools-actions">
-              <label class="tool-field" id="ksmo-status-wrap" hidden>
-                <select id="ksmo-status" aria-label="Статус KSMO">
-                  <option value="">Усі статуси</option>
-                  <option value="active">Активні</option>
-                  <option value="mixed">Змішані</option>
-                  <option value="cancelled">Скасовані</option>
-                </select>
-              </label>
-            </div>
           </div>
         </div>
         <div id="group-grid" class="card-grid panel-scroll"></div>
@@ -267,6 +267,7 @@
                 </label>
                 <div class="tools-actions">
                   <div class="seg" id="item-status-seg" role="group" aria-label="Статус позиції"></div>
+                  <div class="seg" id="item-match-seg" role="group" aria-label="Збіг назви з фасетами"></div>
                   <div class="seg" id="ksmo-status-seg" role="group" aria-label="Статус KSMO" hidden></div>
                   <label class="tool-field sort-field" title="Сортування">
                     <span aria-hidden="true">⇅</span>
@@ -290,6 +291,7 @@
                     <th class="col-status">Статус</th>
                     <th>Що це</th>
                     <th>Тип / група</th>
+                    <th class="col-match" title="Чи складена назва зі значень фасетів">Збіг</th>
                     <th class="col-int">Код 1С</th>
                     <th class="codes-only">Код позиції</th>
                     <th>Од.</th>
@@ -325,7 +327,7 @@
                 <div class="seg" id="member-status-seg" role="group" aria-label="Статус KSM"></div>
               </div>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" id="members-table-wrap">
               <table>
                 <thead>
                   <tr>

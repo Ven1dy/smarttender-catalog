@@ -14,6 +14,7 @@
     ksmoNameFilter: "",
     itemFilter: "",
     itemStatus: "",
+    nameMatch: "", // "" | "ok" | "bad" — чи назва зібрана з фасетів
     sort: "name",
     facetFilters: {},
     showAllFacets: false,
@@ -37,8 +38,6 @@
     groupsCode: $("groups-code"),
     groupsCount: $("groups-count"),
     groupFilter: $("group-filter"),
-    ksmoStatusWrap: $("ksmo-status-wrap"),
-    ksmoStatus: $("ksmo-status"),
     groupGrid: $("group-grid"),
     brandHome: $("brand-home"),
     backHome: $("back-to-home"),
@@ -49,6 +48,7 @@
     itemsSub: $("items-sub"),
     sort: $("sort"),
     itemStatusSeg: $("item-status-seg"),
+    itemMatchSeg: $("item-match-seg"),
     resultCount: $("result-count"),
     filters: $("filters"),
     facetFilters: $("facet-filters"),
@@ -69,6 +69,16 @@
     memberStatusSeg: $("member-status-seg"),
     memberRows: $("member-rows"),
     membersEmpty: $("members-empty"),
+    mainTableWrap: $("main-table-wrap"),
+    membersTableWrap: $("members-table-wrap"),
+  };
+
+  // Таблиці KSM/KSMO: спочатку 50 рядків, далі +20 при прокрутці вниз
+  const PAGE_INITIAL = 50;
+  const PAGE_MORE = 20;
+  const infinite = {
+    main: { list: [], visible: 0, rowHtml: null, scroller: null, tbody: null },
+    members: { list: [], visible: 0, rowHtml: null, scroller: null, tbody: null },
   };
 
   const fmt = (n) => Number(n || 0).toLocaleString("uk-UA");
@@ -112,13 +122,78 @@
   const FORMS_TYPES = ["тип", "типи", "типів"];
   const FORMS_KSMO = ["код KSMO", "коди KSMO", "кодів KSMO"];
 
+  function resetInfinite(key, list, rowHtml, scroller, tbody, ensureIdx = -1) {
+    const slot = infinite[key];
+    slot.list = list || [];
+    slot.rowHtml = rowHtml;
+    slot.scroller = scroller;
+    slot.tbody = tbody;
+    if (!rowHtml || !slot.list.length) {
+      slot.visible = 0;
+      if (tbody) tbody.innerHTML = "";
+      if (scroller) scroller.scrollTop = 0;
+      return;
+    }
+    let visible = Math.min(PAGE_INITIAL, slot.list.length);
+    if (ensureIdx >= visible) visible = Math.min(slot.list.length, ensureIdx + 1);
+    slot.visible = visible;
+    if (scroller) scroller.scrollTop = 0;
+    paintInfinite(key);
+  }
+
+  function paintInfinite(key) {
+    const slot = infinite[key];
+    if (!slot.tbody || !slot.rowHtml) return;
+    slot.tbody.innerHTML = slot.list.slice(0, slot.visible).map(slot.rowHtml).join("");
+    requestAnimationFrame(() => fillInfiniteIfNeeded(key));
+  }
+
+  function appendInfinite(key) {
+    const slot = infinite[key];
+    if (!slot.tbody || !slot.rowHtml || slot.visible >= slot.list.length) return false;
+    const from = slot.visible;
+    const to = Math.min(slot.list.length, slot.visible + PAGE_MORE);
+    slot.tbody.insertAdjacentHTML("beforeend", slot.list.slice(from, to).map(slot.rowHtml).join(""));
+    slot.visible = to;
+    return true;
+  }
+
+  // Якщо 50 рядків не заповнюють висоту — догружаємо, щоб зʼявився скрол
+  function fillInfiniteIfNeeded(key) {
+    const slot = infinite[key];
+    const scroller = slot.scroller;
+    if (!scroller) return;
+    let guard = 0;
+    while (
+      slot.visible < slot.list.length &&
+      scroller.scrollHeight <= scroller.clientHeight + 4 &&
+      guard++ < 200
+    ) {
+      if (!appendInfinite(key)) break;
+    }
+  }
+
+  function bindInfiniteScroll(scroller, key) {
+    if (!scroller || scroller.dataset.infiniteBound) return;
+    scroller.dataset.infiniteBound = "1";
+    scroller.addEventListener(
+      "scroll",
+      () => {
+        if (scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 96) return;
+        if (appendInfinite(key)) fillInfiniteIfNeeded(key);
+      },
+      { passive: true }
+    );
+  }
+
   // Перемикач статусу з кількістю: [{value, label, count}].
   // maxCount — найбільше можливе число в цьому контексті: під нього резервуємо ширину
   // лічильників, щоб перемикач (і поле фільтра поруч) не стрибали при зміні фільтрів.
   function renderSeg(el, options, current, maxCount) {
     if (!el) return;
     const digits = fmt(Math.max(maxCount || 0, ...options.map((o) => o.count || 0))).length;
-    el.style.setProperty("--seg-count-w", `${digits}ch`);
+    // 1.15ch на символ: цифри Manrope (8, 9) трохи ширші за «0», тож запас, щоб ширина була сталою
+    el.style.setProperty("--seg-count-w", `${(digits * 1.15).toFixed(2)}ch`);
     el.innerHTML = options
       .map((o) => {
         const on = o.value === current;
@@ -136,6 +211,7 @@
       <th class="col-status">Статус</th>
       <th>Що це</th>
       ${showGroup ? "<th>Тип / група</th>" : ""}
+      <th class="col-match" title="Чи складена назва зі значень фасетів">Збіг</th>
       <th class="col-int">Код 1С</th>
       <th class="codes-only">Код позиції</th>
       <th>Од.</th>
@@ -158,14 +234,12 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
-  const copyBtn = (value, opts = {}) => {
+  const copyBtn = (value) => {
     const text = String(value ?? "");
     if (!text) return "";
-    const labeled = opts.labeled !== false;
-    return `<button type="button" class="copy-btn${labeled ? " copy-btn--text" : ""}" data-copy="${escapeHtml(text)}" title="Копіювати" aria-label="Копіювати">
-      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M5.5 2A1.5 1.5 0 0 0 4 3.5V4h-.5A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h6a1.5 1.5 0 0 0 1.5-1.5V12h.5a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 12 2H5.5zm5 9H11v.5a.5.5 0 0 1-.5.5h-6a.5.5 0 0 1-.5-.5v-7a.5.5 0 0 1 .5-.5H5v.5A1.5 1.5 0 0 0 6.5 6h5A1.5 1.5 0 0 0 13 4.5V4h.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-.5zM6.5 3h5a.5.5 0 0 1 .5.5V4H6v-.5a.5.5 0 0 1 .5-.5z"/></svg>
-      <svg class="copy-check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.7 11.3 3.4 8l1.2-1.2 2.1 2.1 4.7-4.7L12.6 5.4z"/></svg>
-      ${labeled ? `<span class="copy-label">Копіювати</span><span class="copy-label copy-label--done">Скопійовано</span>` : ""}
+    return `<button type="button" class="copy-btn" data-copy="${escapeHtml(text)}" title="Копіювати" aria-label="Копіювати">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M5.5 2A1.5 1.5 0 0 0 4 3.5V4h-.5A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h6a1.5 1.5 0 0 0 1.5-1.5V12h.5a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 12 2H5.5zm5 9H11v.5a.5.5 0 0 1-.5.5h-6a.5.5 0 0 1-.5-.5v-7a.5.5 0 0 1 .5-.5H5v.5A1.5 1.5 0 0 0 6.5 6h5A1.5 1.5 0 0 0 13 4.5V4h.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-.5zM6.5 3h5a.5.5 0 0 1 .5.5V4H6v-.5a.5.5 0 0 1 .5-.5z"/></svg>
+      <svg class="copy-check" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.7 11.3 3.4 8l1.2-1.2 2.1 2.1 4.7-4.7L12.6 5.4z"/></svg>
     </button>`;
   };
 
@@ -462,6 +536,7 @@
     if (els.membersWrap) els.membersWrap.hidden = !isKsmo;
     if (els.detail) els.detail.hidden = isKsmo;
     if (els.itemStatusSeg) els.itemStatusSeg.hidden = isKsmo;
+    if (els.itemMatchSeg) els.itemMatchSeg.hidden = isKsmo;
     if (els.ksmoStatusSeg) els.ksmoStatusSeg.hidden = !isKsmo;
     if (els.itemFilterWrap) els.itemFilterWrap.hidden = isKsmo;
   }
@@ -469,6 +544,7 @@
   function renderKsmoMembers(entry) {
     if (!els.memberRows) return;
     if (!entry) {
+      resetInfinite("members", [], null, els.membersTableWrap, els.memberRows);
       els.memberRows.innerHTML = "";
       els.membersTitle.textContent = "Оберіть KSMO зліва";
       els.membersCount.textContent = "";
@@ -501,8 +577,13 @@
       els.membersEmpty.hidden = members.length > 0;
       els.membersEmpty.textContent = "У цього KSMO немає підвʼязаних KSM.";
     }
-    els.memberRows.innerHTML = members
-      .map((m) => {
+    const ensureIdx = state.selectedKmat
+      ? members.findIndex((m) => m.kmat === state.selectedKmat)
+      : -1;
+    resetInfinite(
+      "members",
+      members,
+      (m) => {
         const active = m.kmat === state.selectedKmat ? "active" : "";
         return `
           <tr class="${active}${m.cancelled ? " is-cancelled" : ""}" data-kmat="${escapeHtml(m.kmat)}">
@@ -521,49 +602,16 @@
               <button type="button" class="go-ksm-btn" data-open-in-ksm="${escapeHtml(m.kmat)}" title="Відкрити цю позицію в каталозі KSM" aria-label="Відкрити в каталозі KSM">→</button>
             </td>
           </tr>`;
-      })
-      .join("");
+      },
+      els.membersTableWrap,
+      els.memberRows,
+      ensureIdx
+    );
   }
 
   function renderGroups() {
     const cat = categoryByCode(state.category);
-    const isKsmo = state.mode === "ksmo";
-    els.ksmoStatusWrap.hidden = !isKsmo;
-    els.groupFilter.placeholder = isKsmo ? "Фільтр KSMO / код 1С…" : "Фільтр типів…";
-
-    if (isKsmo) {
-      els.groupsTitle.textContent = cat ? cat.name : "KSMO";
-      setTitleCode(els.groupsCode, cat?.code);
-
-      const entries = filteredKsmoEntries().sort(
-        (a, b) => b.count - a.count || ukCompare(a.name, b.name)
-      );
-      els.groupsCount.textContent = countLabel(
-        entries.length,
-        filteredKsmoEntries({ ignoreStatus: true, ignoreText: true }).length,
-        FORMS_KSMO
-      );
-      els.groupGrid.innerHTML = entries
-        .map((e) => {
-          return `
-          <button type="button" class="group-card" data-ksmo="${escapeHtml(e.code)}">
-            <div class="card-top">
-              ${chip("code", e.code, "Код 1С (KSMO)")}
-              <div class="card-title">${escapeHtml(e.name)}</div>
-              <div class="card-badges">
-                ${chip("count", fmt(e.count), `${fmt(e.count)} ${plural(e.count, ["позиція", "позиції", "позицій"])} KSM з цим кодом`)}
-              </div>
-            </div>
-            <div class="card-hint">${statusPill(e.status)} · живих ${e.active_count} · скасованих ${e.cancelled_count}</div>
-          </button>`;
-        })
-        .join("");
-      if (!entries.length) {
-        els.groupGrid.innerHTML = `<div class="empty">Немає KSMO за цим фільтром</div>`;
-      }
-      return;
-    }
-
+    els.groupFilter.placeholder = "Фільтр типів…";
     els.groupsTitle.textContent = cat ? cat.name : "Типи";
     setTitleCode(els.groupsCode, cat?.code);
 
@@ -576,8 +624,7 @@
     );
     els.groupsCount.textContent = countLabel(groups.length, inCategory.length, FORMS_TYPES);
 
-    const card = (g) => {
-        return `
+    const card = (g) => `
           <button type="button" class="group-card" data-group="${escapeHtml(g.code)}">
             <div class="card-top">
               ${chip("code", g.code, "Код типу")}
@@ -589,7 +636,6 @@
             </div>
           </button>
         `;
-    };
 
     // розбиваємо типи на смислові блоки (правила — у SECTION_RULES нижче)
     const sections = state.category && inCategory.length >= SECTION_MIN_TYPES
@@ -811,15 +857,34 @@
     return list;
   }
 
-  // Повертає { items, base, total }: base — усі фільтри, крім статусу (для лічильників статусу)
+  const matchKindOk = (item) => nameFacetFit(item).kind === "ok";
+  const matchKindBad = (item) => {
+    const k = nameFacetFit(item).kind;
+    return k === "bad" || k === "partial";
+  };
+
+  const applyStatus = (list) => {
+    if (state.itemStatus === "cancelled") return list.filter((item) => !!item.cancelled);
+    if (state.itemStatus === "active") return list.filter((item) => !item.cancelled);
+    return list;
+  };
+  const applyNameMatch = (list) => {
+    if (state.nameMatch === "ok") return list.filter(matchKindOk);
+    if (state.nameMatch === "bad") return list.filter(matchKindBad);
+    return list;
+  };
+
+  // Повертає { items, base, matchBase, total }:
+  // base — усі фільтри, крім статусу (лічильники статусу);
+  // matchBase — усі, крім збігу назви↔фасети (лічильники збігу).
   function filteredItems() {
     const q = normalize(state.query);
     const scope = scopeItems();
-    let list = scope;
+    let pool = scope;
 
     const facetEntries = Object.entries(state.facetFilters).filter(([, v]) => v);
     if (facetEntries.length) {
-      list = list.filter((item) =>
+      pool = pool.filter((item) =>
         facetEntries.every(([code, value]) =>
           item.chars.some(
             (c) => c.code === code && String(c.value_code ?? c.value ?? "") === value
@@ -827,16 +892,13 @@
         )
       );
     }
-    if (q) list = list.filter((item) => itemMatches(item, q));
+    if (q) pool = pool.filter((item) => itemMatches(item, q));
     const local = normalize(state.itemFilter);
-    if (local) list = list.filter((item) => itemMatches(item, local));
+    if (local) pool = pool.filter((item) => itemMatches(item, local));
 
-    const base = list;
-    if (state.itemStatus === "cancelled") {
-      list = list.filter((item) => !!item.cancelled);
-    } else if (state.itemStatus === "active") {
-      list = list.filter((item) => !item.cancelled);
-    }
+    const base = applyNameMatch(pool);
+    const matchBase = applyStatus(pool);
+    const list = applyNameMatch(matchBase);
 
     const sorter = {
       name: (a, b) => ukCompare(a.name, b.name),
@@ -846,7 +908,12 @@
     }[state.sort];
     // без розділу (глобальний пошук) знаменник — усе, що знайшов пошук
     const total = state.category || state.group ? scope.length : base.length;
-    return { items: list.slice().sort(sorter), base, total };
+    return {
+      items: list.slice().sort(sorter),
+      base,
+      matchBase,
+      total,
+    };
   }
 
   let facetFitWidth = -1;
@@ -1009,73 +1076,8 @@
     });
   }
 
-  function renderKsmoDetail(entry) {
-    if (!entry) {
-      els.detail.innerHTML = `
-        <div class="detail-empty">
-          <strong>Картка KSMO</strong>
-          <p>Оберіть код 1С зліва — побачите всі повʼязані KSM.</p>
-        </div>`;
-      return;
-    }
-    const members = entry.items || [];
-    els.detail.innerHTML = `
-      <div class="detail-name-block detail-name-block--ksmo">
-        <div class="detail-name-head">
-          <div class="chars-title">Найменування KSMO</div>
-          <div class="detail-pills">
-            ${statusPill(entry.status)}
-            <span class="pill pill-neutral">${entry.count} KSM</span>
-          </div>
-        </div>
-        <div class="detail-name-row">
-          <h2>${escapeHtml(entry.name)}</h2>
-          ${copyBtn(entry.name)}
-        </div>
-        <div class="detail-code-row">
-          <span class="detail-code-label">Код 1С</span>
-          ${codeWithCopy(entry.code)}
-        </div>
-      </div>
-      <section class="detail-card">
-        <div class="detail-card-head"><div class="chars-title">Підсумок</div></div>
-        <dl class="meta-grid">
-          <dt>Категорія</dt><dd>${escapeHtml(entry.category_name || "—")}</dd>
-          <dt>Живих</dt><dd>${entry.active_count}</dd>
-          <dt>Скасованих</dt><dd>${entry.cancelled_count}</dd>
-        </dl>
-      </section>
-      <div class="chars-title">Повʼязані KSM (${members.length})</div>
-      <div class="related-list">
-        ${members
-          .map(
-            (m) => `
-          <div class="related-chip ${m.kmat === state.selectedKmat ? "active" : ""}" data-open-kmat="${escapeHtml(m.kmat)}" role="button" tabindex="0">
-            <div class="related-top">
-              <span class="related-kind">${escapeHtml(m.group_name || "KSM")}</span>
-              ${statusPill(null, !!m.cancelled)}
-            </div>
-            <div class="related-name-row">
-              <div class="related-name">${escapeHtml(m.name)}</div>
-              ${copyBtn(m.name, { labeled: false })}
-            </div>
-            <div class="related-kmat mono codes-only copy-inline">
-              <span>${escapeHtml(m.kmat)}</span>
-              ${copyBtn(m.kmat, { labeled: false })}
-            </div>
-          </div>`
-          )
-          .join("")}
-      </div>
-    `;
-  }
-
   function renderDetail(item) {
     if (!item) {
-      if (state.mode === "ksmo" && state.selectedKsmo) {
-        renderKsmoDetail(ksmoByCode(state.selectedKsmo));
-        return;
-      }
       els.detail.innerHTML = `
         <div class="detail-empty">
           <strong>Картка позиції</strong>
@@ -1137,32 +1139,12 @@
       ? chainLink(namesEqual, namesEqual ? "Назви збігаються" : "Назви відрізняються", bridgeTitle)
       : chainGap;
 
-    // чи складається найменування KSM повністю зі значень фасетів:
-    // у назві немає зайвого тексту І кожен фасет зі значенням у ній присутній
-    const showCtorBridge = chars.length > 0;
-    const missingChars = chars.filter(
-      (c, i) => String(c.value ?? "").trim() && !ksmSegs.found.has(String(i))
-    );
-    const ctorOk = showCtorBridge && ksmSegs.rest.length === 0 && missingChars.length === 0;
-    const ctorProblems = [];
-    if (missingChars.length)
-      ctorProblems.push(
-        `У назві немає ${missingChars.length} ${plural(missingChars.length, ["фасету", "фасетів", "фасетів"])}: ${missingChars
-          .map((c) => `${c.name} — «${c.value}»`)
-          .join("; ")}`
-      );
-    if (ksmSegs.rest.length)
-      ctorProblems.push(
-        `У назві є частини, яких немає серед фасетів: ${ksmSegs.rest.map((r) => `«${r}»`).join(", ")}`
-      );
-    const ctorTip = ctorOk
-      ? "Найменування SmartTender (KSM) повністю складене зі значень фасетів"
-      : ctorProblems.join(". ");
-    const ctorText = ctorOk
-      ? "Назва зібрана з фасетів"
-      : missingChars.length && !ksmSegs.rest.length
-        ? `Не вистачає ${missingChars.length} ${plural(missingChars.length, ["фасету", "фасетів", "фасетів"])}`
-        : "Назва не збігається з фасетами";
+    // чи складається найменування KSM повністю зі значень фасетів
+    const fit = nameFacetFit(item);
+    const showCtorBridge = fit.kind !== "none";
+    const ctorOk = fit.kind === "ok";
+    const ctorTip = fit.tip;
+    const ctorText = fit.label;
     const ctorLink = showCtorBridge ? chainLink(ctorOk, ctorText, ctorTip) : chainGap;
     const ksmoBlock = item.int_code
       ? `
@@ -1281,6 +1263,94 @@
   // колір частин, знайдених у назві: один для всіх (текст/рамка, фон підсвітки)
   const SEG_COLORS = [["#2f7d5b", "#d6f0e2"]];
 
+  // Наскільки назва зібрана зі значень фасетів (кеш на обʼєкті позиції).
+  const nameFitCache = new WeakMap();
+  function nameFacetFit(item) {
+    const hit = nameFitCache.get(item);
+    if (hit) return hit;
+
+    const chars = item?.chars || [];
+    if (!chars.length) {
+      const empty = {
+        kind: "none",
+        matched: 0,
+        total: 0,
+        missing: [],
+        rest: [],
+        tip: "У позиції немає фасетів",
+        label: "—",
+        short: "—",
+      };
+      nameFitCache.set(item, empty);
+      return empty;
+    }
+
+    const segParts = chars.map((c, i) => ({ seg: String(i), value: c.value }));
+    const segs = findNameSegments(item.name, segParts);
+    const missing = chars.filter(
+      (c, i) => String(c.value ?? "").trim() && !segs.found.has(String(i))
+    );
+    const valued = chars.filter((c) => String(c.value ?? "").trim());
+    const total = valued.length;
+    const matched = total - missing.length;
+    const rest = segs.rest;
+
+    const problems = [];
+    if (missing.length)
+      problems.push(
+        `У назві немає ${missing.length} ${plural(missing.length, ["фасету", "фасетів", "фасетів"])}: ${missing
+          .map((c) => `${c.name} — «${c.value}»`)
+          .join("; ")}`
+      );
+    if (rest.length)
+      problems.push(
+        `У назві є частини, яких немає серед фасетів: ${rest.map((r) => `«${r}»`).join(", ")}`
+      );
+
+    let kind;
+    let label;
+    let short;
+    let tip;
+    if (!total) {
+      kind = "none";
+      label = "—";
+      short = "—";
+      tip = "У фасетів немає значень для порівняння";
+    } else if (!missing.length && !rest.length) {
+      kind = "ok";
+      label = "Назва зібрана з фасетів";
+      short = "збіг";
+      tip = "Найменування SmartTender (KSM) повністю складене зі значень фасетів";
+    } else if (!matched) {
+      kind = "bad";
+      label = "Назва не збігається з фасетами";
+      short = "ні";
+      tip = problems.join(". ");
+    } else {
+      kind = "partial";
+      label =
+        missing.length && !rest.length
+          ? `Не вистачає ${missing.length} ${plural(missing.length, ["фасету", "фасетів", "фасетів"])}`
+          : "Назва не збігається з фасетами";
+      short = `${matched}/${total}`;
+      tip = problems.join(". ");
+    }
+
+    const result = { kind, matched, total, missing, rest, tip, label, short };
+    nameFitCache.set(item, result);
+    return result;
+  }
+
+  function matchPill(item) {
+    const fit = nameFacetFit(item);
+    if (fit.kind === "none") {
+      return `<span class="match-pill match-none" title="${escapeHtml(fit.tip)}">—</span>`;
+    }
+    const tone = fit.kind === "ok" ? "ok" : fit.kind === "partial" ? "mid" : "bad";
+    const icon = fit.kind === "ok" ? "✓" : fit.kind === "partial" ? "≈" : "✕";
+    return `<span class="match-pill match-${tone}" title="${escapeHtml(fit.tip)}"><span class="match-ico" aria-hidden="true">${icon}</span>${escapeHtml(fit.short)}</span>`;
+  }
+
   // Знаходимо в назві шматки, що збігаються зі значеннями фасетів, і обгортаємо їх.
   function findNameSegments(name, parts) {
     const text = String(name || "");
@@ -1376,12 +1446,8 @@
     }
 
     renderFacetFilters();
-    const { items, base, total } = filteredItems();
-    const limit = 300;
-    const slice = items.slice(0, limit);
-    // обрана позиція за межами перших 300 (напр. перехід із довідника KSMO) — показуємо її першою
-    const pickedIdx = state.selectedKmat ? items.findIndex((i) => i.kmat === state.selectedKmat) : -1;
-    if (pickedIdx >= limit) slice.unshift(items[pickedIdx]);
+    const { items, base, matchBase, total } = filteredItems();
+    const ensureIdx = state.selectedKmat ? items.findIndex((i) => i.kmat === state.selectedKmat) : -1;
 
     const activeCount = base.filter((i) => !i.cancelled).length;
     renderSeg(
@@ -1394,11 +1460,25 @@
       state.itemStatus,
       total
     );
+    const matchOkCount = matchBase.filter(matchKindOk).length;
+    const matchBadCount = matchBase.filter(matchKindBad).length;
+    renderSeg(
+      els.itemMatchSeg,
+      [
+        { value: "", label: "Усі", count: matchBase.length },
+        { value: "ok", label: "Збіг", count: matchOkCount, tone: "ok" },
+        { value: "bad", label: "Ні", count: matchBadCount, tone: "warn" },
+      ],
+      state.nameMatch,
+      total
+    );
     const showGroup = !state.group;
     els.resultCount.textContent = countLabel(items.length, total, FORMS_ITEMS);
-    els.empty.hidden = slice.length > 0;
-    els.rows.innerHTML = slice
-      .map((item) => {
+    els.empty.hidden = items.length > 0;
+    resetInfinite(
+      "main",
+      items,
+      (item) => {
         const active = item.kmat === state.selectedKmat ? "active" : "";
         const groupCell = showGroup
           ? `<td><div class="name-cell" style="font-weight:600">${escapeHtml(item.group_name)}</div></td>`
@@ -1410,20 +1490,17 @@
               <div class="name-cell">${escapeHtml(item.name)}</div>
             </td>
             ${groupCell}
+            <td class="col-match">${matchPill(item)}</td>
             <td class="col-int mono">${item.int_code ? escapeHtml(item.int_code) : "—"}</td>
             <td class="mono codes-only">${escapeHtml(item.kmat)}</td>
             <td>${escapeHtml(item.unit || "—")}</td>
             <td><span class="badge">${item.chars.length}</span></td>
           </tr>`;
-      })
-      .join("");
-
-    if (items.length > limit) {
-      els.rows.insertAdjacentHTML(
-        "beforeend",
-        `<tr><td colspan="${showGroup ? 7 : 6}" class="muted">Показано перші ${limit} з ${items.length}. Уточніть пошук або фасети.</td></tr>`
-      );
-    }
+      },
+      els.mainTableWrap,
+      els.rows,
+      ensureIdx
+    );
 
     if (state.selectedKmat && !items.some((i) => i.kmat === state.selectedKmat)) {
       state.selectedKmat = items[0]?.kmat || null;
@@ -1441,9 +1518,14 @@
     els.filters.hidden = true;
     els.facetFilters.innerHTML = "";
 
-    const entries = sortedKsmoEntries(filteredKsmoEntries());
-    const limit = 400;
-    const slice = entries.slice(0, limit);
+    // лічильники статусу — з урахуванням текстового фільтра, але без самого статусу
+    const byStatus = filteredKsmoEntries({ ignoreStatus: true });
+    const entries = sortedKsmoEntries(
+      state.ksmoStatus ? byStatus.filter((e) => e.status === state.ksmoStatus) : byStatus
+    );
+    const ensureIdx = state.selectedKsmo
+      ? entries.findIndex((e) => e.code === state.selectedKsmo)
+      : -1;
 
     if (state.query && !state.category) {
       els.crumbs.innerHTML = `<button type="button" data-crumb="home">Довідник KSMO</button> <span class="crumb-sep">›</span> Пошук`;
@@ -1465,8 +1547,6 @@
       els.itemsSub.textContent = "коди інтеграції 1С";
     }
 
-    // лічильники статусу — з урахуванням текстового фільтра, але без самого статусу
-    const byStatus = filteredKsmoEntries({ ignoreStatus: true });
     const countOf = (s) => byStatus.filter((e) => e.status === s).length;
     const total = state.category
       ? filteredKsmoEntries({ ignoreStatus: true, ignoreText: true }).length
@@ -1483,9 +1563,11 @@
       total
     );
     els.resultCount.textContent = countLabel(entries.length, total, FORMS_KSMO);
-    els.empty.hidden = slice.length > 0;
-    els.rows.innerHTML = slice
-      .map((e) => {
+    els.empty.hidden = entries.length > 0;
+    resetInfinite(
+      "main",
+      entries,
+      (e) => {
         const active = e.code === state.selectedKsmo ? "active" : "";
         return `
           <tr class="${active}${e.status === "cancelled" ? " is-cancelled" : ""}" data-ksmo="${escapeHtml(e.code)}">
@@ -1496,21 +1578,17 @@
             <td class="col-int mono">${escapeHtml(e.code)}</td>
             <td class="col-count"><span class="badge">${e.count}</span></td>
           </tr>`;
-      })
-      .join("");
-
-    if (entries.length > limit) {
-      els.rows.insertAdjacentHTML(
-        "beforeend",
-        `<tr><td colspan="4" class="muted">Показано перші ${limit} з ${entries.length}. Уточніть пошук.</td></tr>`
-      );
-    }
+      },
+      els.mainTableWrap,
+      els.rows,
+      ensureIdx
+    );
 
     if (state.selectedKsmo && !entries.some((e) => e.code === state.selectedKsmo)) {
-      state.selectedKsmo = slice[0]?.code || null;
+      state.selectedKsmo = entries[0]?.code || null;
       state.selectedKmat = null;
-    } else if (!state.selectedKsmo && slice[0]) {
-      state.selectedKsmo = slice[0].code;
+    } else if (!state.selectedKsmo && entries[0]) {
+      state.selectedKsmo = entries[0].code;
       state.selectedKmat = null;
     }
 
@@ -1639,6 +1717,7 @@
     state.selectedKsmo = null;
     state.facetFilters = {};
     state.itemStatus = "";
+    state.nameMatch = "";
     state.itemFilter = "";
     if (els.itemFilter) els.itemFilter.value = "";
     state.query = "";
@@ -1660,10 +1739,10 @@
     state.group = null;
     state.selectedKsmo = null;
     state.ksmoStatus = "";
-    if (els.ksmoStatus) els.ksmoStatus.value = "";
     state.ksmoNameFilter = "";
     if (els.ksmoNameFilter) els.ksmoNameFilter.value = "";
     state.itemStatus = "";
+    state.nameMatch = "";
     state.showAllFacets = false;
     resetNavSoft();
     state.query = "";
@@ -1819,8 +1898,8 @@
       setItemsLayout(r.mode === "ksmo");
       resetNavSoft();
       state.ksmoStatus = "";
-      if (els.ksmoStatus) els.ksmoStatus.value = "";
       state.itemStatus = "";
+      state.nameMatch = "";
       state.category = r.cat;
       state.group = r.mode === "ksm" ? r.group : null;
       state.selectedKsmo = r.mode === "ksmo" ? r.ksmo : null;
@@ -1846,6 +1925,9 @@
   window.addEventListener("hashchange", () => applyRoute());
 
   // events
+  bindInfiniteScroll(els.mainTableWrap, "main");
+  bindInfiniteScroll(els.membersTableWrap, "members");
+
   document.querySelector(".mode-switch")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-mode]");
     if (btn) setMode(btn.dataset.mode);
@@ -1857,11 +1939,6 @@
   });
 
   els.groupGrid.addEventListener("click", (e) => {
-    const ksmoBtn = e.target.closest("[data-ksmo]");
-    if (ksmoBtn) {
-      openKsmo(ksmoBtn.dataset.ksmo);
-      return;
-    }
     const btn = e.target.closest("[data-group]");
     if (btn) openGroup(btn.dataset.group);
   });
@@ -1942,12 +2019,6 @@
     renderGroups();
   });
 
-  els.ksmoStatus?.addEventListener("change", () => {
-    state.ksmoStatus = els.ksmoStatus.value;
-    if (state.mode === "ksmo" && state.view === "items") renderItems();
-    else renderGroups();
-  });
-
   // перемикачі статусу: KSMO зліва, позиції KSM, підвʼязані KSM справа
   const onSeg = (el, apply) =>
     el?.addEventListener("click", (e) => {
@@ -1958,10 +2029,12 @@
     });
   onSeg(els.ksmoStatusSeg, (v) => {
     state.ksmoStatus = v;
-    if (els.ksmoStatus) els.ksmoStatus.value = v;
   });
   onSeg(els.itemStatusSeg, (v) => {
     state.itemStatus = v;
+  });
+  onSeg(els.itemMatchSeg, (v) => {
+    state.nameMatch = v;
   });
   onSeg(els.memberStatusSeg, (v) => {
     state.itemStatus = v;
