@@ -14,12 +14,23 @@
     ksmoNameFilter: "",
     itemFilter: "",
     itemStatus: "",
-    nameMatch: "", // "" | "ok" | "bad" — чи назва зібрана з фасетів
+    nameMatch: "", // "" | "ok" | "bad" | "vbad" — збіг назви з фасетами
+    nameDupes: false, // аудит майже однакових назв серед активних
+    typeDupes: false, // аудит однакових/майже однакових типів у категорії
     sort: "name",
+    sortDir: "asc", // asc | desc — клік по шапці таблиці
     facetFilters: {},
     showAllFacets: false,
     selectedKmat: null,
   };
+
+  // Відмічені рядки KSM (галочки) — Set кодів KMAT
+  const checkedKmats = new Set();
+
+  // Індекс майже-дублів назв: будується один раз після hydrate
+  let nameDupeIndex = null; // { kmats: Set<string>, sizeByKmat: Map<string, number> }
+  // Індекс дублів типів (одна назва в одній категорії)
+  let typeDupeIndex = null; // { clusters, count, groupCount }
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -46,7 +57,6 @@
     itemsTitle: $("items-title"),
     itemsCode: $("items-code"),
     itemsSub: $("items-sub"),
-    sort: $("sort"),
     itemStatusSeg: $("item-status-seg"),
     itemMatchSeg: $("item-match-seg"),
     resultCount: $("result-count"),
@@ -71,6 +81,11 @@
     membersEmpty: $("members-empty"),
     mainTableWrap: $("main-table-wrap"),
     membersTableWrap: $("members-table-wrap"),
+    exportBar: $("export-bar"),
+    exportCount: $("export-count"),
+    exportToggle: $("export-toggle"),
+    exportDropdown: $("export-dropdown"),
+    exportClear: $("export-clear"),
   };
 
   // Таблиці KSM/KSMO: спочатку 50 рядків, далі +20 при прокрутці вниз
@@ -205,27 +220,46 @@
       .join("");
   }
 
+  function sortInd(key) {
+    if (state.sort !== key) return `<span class="sort-ind" aria-hidden="true"></span>`;
+    const arrow = state.sortDir === "desc" ? "▼" : "▲";
+    return `<span class="sort-ind is-on" aria-hidden="true">${arrow}</span>`;
+  }
+
+  function thSort(key, label, cls = "", title = "") {
+    const aria =
+      state.sort === key ? (state.sortDir === "desc" ? "descending" : "ascending") : "none";
+    const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
+    const classAttr = ["th-sort", cls].filter(Boolean).join(" ");
+    return `<th class="${classAttr}" data-sort="${key}" aria-sort="${aria}"${titleAttr}><span class="th-sort-label">${label}${sortInd(key)}</span></th>`;
+  }
+
   function theadKsm(showGroup) {
     return `
     <tr>
-      <th class="col-status">Статус</th>
-      <th>Що це</th>
-      ${showGroup ? "<th>Тип / група</th>" : ""}
-      <th class="col-match" title="Чи складена назва зі значень фасетів">Збіг</th>
-      <th class="col-int">Код 1С</th>
-      <th class="codes-only">Код позиції</th>
-      <th>Од.</th>
-      <th title="Кількість фасетів у позиції">Фас.</th>
+      <th class="col-check">
+        <input type="checkbox" id="select-all-ksm" aria-label="Відмітити всі у списку" />
+      </th>
+      ${thSort("status", "Статус", "col-status")}
+      ${thSort("name", "Що це")}
+      ${showGroup ? thSort("group", "Тип / група") : ""}
+      ${thSort("match", "Збіг", "col-match", "Чи складена назва зі значень фасетів")}
+      ${thSort("int", "Код 1С", "col-int")}
+      ${thSort("kmat", "Код позиції", "codes-only")}
+      ${thSort("unit", "Од.")}
+      ${thSort("facets", "Фас.", "", "Кількість фасетів у позиції")}
     </tr>`;
   }
 
-  const THEAD_KSMO = `
+  function theadKsmo() {
+    return `
     <tr>
-      <th class="col-status">Статус</th>
-      <th>KSMO / найменування</th>
-      <th class="col-int">Код інтеграції</th>
-      <th class="col-count">KSM</th>
+      ${thSort("status", "Статус", "col-status")}
+      ${thSort("name", "KSMO / найменування")}
+      ${thSort("kmat", "Код інтеграції", "col-int")}
+      ${thSort("group", "KSM", "col-count")}
     </tr>`;
+  }
 
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -283,6 +317,103 @@
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+
+  // Для порівняння «майже однакові назви»: пробіли/пунктуація + ё/укр спрощення
+  const normalizeNameKey = (value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      .replace(/і/g, "и")
+      .replace(/ї/g, "и")
+      .replace(/є/g, "е")
+      .replace(/ґ/g, "г")
+      .normalize("NFKC")
+      .replace(/[\s\-–—_/\\.,;:()\[\]{}«»"'`°%№#+*=~]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  function buildNameDupeIndex(items) {
+    const byExact = new Map();
+    const byNorm = new Map();
+    for (const it of items) {
+      if (it.cancelled) continue;
+      const name = String(it.name || "").trim();
+      if (!name) continue;
+      if (!byExact.has(name)) byExact.set(name, []);
+      byExact.get(name).push(it);
+      const key = normalizeNameKey(name);
+      if (!key) continue;
+      if (!byNorm.has(key)) byNorm.set(key, []);
+      byNorm.get(key).push(it);
+    }
+    const kmats = new Set();
+    const sizeByKmat = new Map();
+    const markGroup = (group) => {
+      if (group.length < 2) return;
+      for (const it of group) {
+        kmats.add(it.kmat);
+        sizeByKmat.set(it.kmat, Math.max(sizeByKmat.get(it.kmat) || 0, group.length));
+      }
+    };
+    for (const group of byExact.values()) markGroup(group);
+    for (const group of byNorm.values()) markGroup(group);
+    return { kmats, sizeByKmat, count: kmats.size };
+  }
+
+  function ensureNameDupeIndex() {
+    if (nameDupeIndex || !state.data) return nameDupeIndex;
+    nameDupeIndex = buildNameDupeIndex(state.data.items);
+    return nameDupeIndex;
+  }
+
+  // Типи з однаковою / майже однаковою назвою всередині однієї категорії
+  function buildTypeDupeIndex(groups) {
+    const byKey = new Map();
+    for (const g of groups || []) {
+      const key = normalizeNameKey(g.name);
+      if (!key) continue;
+      const bucket = `${g.category}\0${key}`;
+      if (!byKey.has(bucket)) byKey.set(bucket, []);
+      byKey.get(bucket).push(g);
+    }
+    const clusters = [];
+    for (const list of byKey.values()) {
+      if (list.length < 2) continue;
+      const sorted = [...list].sort(
+        (a, b) =>
+          (b.count || 0) - (a.count || 0) ||
+          ukCompare(a.code, b.code)
+      );
+      clusters.push({
+        key: normalizeNameKey(sorted[0].name),
+        label: sorted[0].name,
+        category: sorted[0].category,
+        category_name: sorted[0].category_name,
+        types: sorted,
+      });
+    }
+    clusters.sort(
+      (a, b) =>
+        b.types.length - a.types.length ||
+        ukCompare(a.category_name || a.category, b.category_name || b.category) ||
+        ukCompare(a.label, b.label)
+    );
+    return {
+      clusters,
+      count: clusters.length,
+      groupCount: clusters.reduce((sum, c) => sum + c.types.length, 0),
+    };
+  }
+
+  function ensureTypeDupeIndex() {
+    if (typeDupeIndex || !state.data) return typeDupeIndex;
+    typeDupeIndex = buildTypeDupeIndex(state.data.groups);
+    return typeDupeIndex;
+  }
+
+  const isTypeDupesAudit = () =>
+    state.mode === "ksm" && state.typeDupes && !state.group && !state.query;
 
   // \u0424\u0456\u043b\u044c\u0442\u0440 \u0431\u043b\u043e\u043a\u0456\u0432: \u043a\u0456\u043b\u044c\u043a\u0430 \u0441\u043b\u0456\u0432 \u0447\u0435\u0440\u0435\u0437 \u043f\u0440\u043e\u0431\u0456\u043b \u2014 \u043c\u0430\u044e\u0442\u044c \u0437\u043d\u0430\u0439\u0442\u0438\u0441\u044f \u0432\u0441\u0456 (\u0443 \u043d\u0430\u0437\u0432\u0456 \u0430\u0431\u043e \u043a\u043e\u0434\u0456)
   const filterTokens = (value) => normalize(value).split(/\s+/).filter(Boolean);
@@ -434,6 +565,23 @@
       ? `${m.categories} категорій · ${fmt(ksmoTotal)} кодів 1С`
       : `${m.categories} категорій · ${m.groups} типів · ${fmt(m.items)} позицій`;
 
+    const dupesBtn = $("name-dupes-audit");
+    if (dupesBtn && !isKsmo) {
+      const n = ensureNameDupeIndex()?.count || 0;
+      const label = dupesBtn.querySelector("span:last-child");
+      if (label) label.textContent = n ? `Майже однакові назви · ${fmt(n)}` : "Майже однакові назви";
+    }
+    const typeDupesBtn = $("type-dupes-audit");
+    if (typeDupesBtn && !isKsmo) {
+      const idx = ensureTypeDupeIndex();
+      const label = typeDupesBtn.querySelector("span:last-child");
+      if (label) {
+        label.textContent = idx?.count
+          ? `Однакові типи · ${fmt(idx.count)}`
+          : "Однакові типи";
+      }
+    }
+
     const tokens = filterTokens(state.categoryFilter);
     const available = state.data.categories.filter((c) => !isKsmo || c.ksmo_count);
     const shown = available.filter((c) => matchesTokens([c.code, c.name].join(" "), tokens));
@@ -483,17 +631,24 @@
     });
   }
 
+  function applySortDir(cmp) {
+    return state.sortDir === "desc" ? -cmp : cmp;
+  }
+
+  const KSMO_STATUS_RANK = { active: 0, mixed: 1, cancelled: 2 };
+
   function sortedKsmoEntries(entries) {
     const list = entries.slice();
-    if (state.sort === "kmat") {
-      return list.sort((a, b) => ukCompare(a.code, b.code));
-    }
-    if (state.sort === "group") {
-      return list.sort(
-        (a, b) => b.count - a.count || ukCompare(a.name, b.name)
-      );
-    }
-    return list.sort((a, b) => ukCompare(a.name, b.name));
+    const base =
+      {
+        kmat: (a, b) => ukCompare(a.code, b.code),
+        group: (a, b) => b.count - a.count || ukCompare(a.name, b.name),
+        status: (a, b) =>
+          (KSMO_STATUS_RANK[a.status] ?? 9) - (KSMO_STATUS_RANK[b.status] ?? 9) ||
+          ukCompare(a.name, b.name),
+        name: (a, b) => ukCompare(a.name, b.name),
+      }[state.sort] || ((a, b) => ukCompare(a.name, b.name));
+    return list.sort((a, b) => applySortDir(base(a, b)));
   }
 
   function ksmoMemberItems(entry) {
@@ -517,20 +672,26 @@
         return true;
       })
       .sort((a, b) => {
-        if (state.sort === "kmat") return ukCompare(a.kmat, b.kmat);
-        if (state.sort === "group") {
-          return (
-            ukCompare(a.group_name, b.group_name) ||
-            ukCompare(a.name, b.name)
-          );
+        let cmp = 0;
+        if (state.sort === "kmat") cmp = ukCompare(a.kmat, b.kmat);
+        else if (state.sort === "group") {
+          cmp = ukCompare(a.group_name, b.group_name) || ukCompare(a.name, b.name);
+        } else if (state.sort === "status") {
+          cmp = Number(a.cancelled) - Number(b.cancelled) || ukCompare(a.name, b.name);
+        } else if (state.sort === "unit") {
+          cmp = ukCompare(a.unit, b.unit) || ukCompare(a.name, b.name);
+        } else if (state.sort === "facets") {
+          cmp = a.charsLen - b.charsLen || ukCompare(a.name, b.name);
+        } else {
+          cmp = ukCompare(a.name, b.name);
         }
-        return ukCompare(a.name, b.name);
+        return applySortDir(cmp);
       });
   }
 
   function setItemsLayout(isKsmo) {
     if (els.mainThead) {
-      els.mainThead.innerHTML = isKsmo ? THEAD_KSMO : theadKsm(!state.group);
+      els.mainThead.innerHTML = isKsmo ? theadKsmo() : theadKsm(!state.group);
     }
     if (els.ksmoPanelFilters) els.ksmoPanelFilters.hidden = !isKsmo;
     if (els.membersWrap) els.membersWrap.hidden = !isKsmo;
@@ -539,6 +700,9 @@
     if (els.itemMatchSeg) els.itemMatchSeg.hidden = isKsmo;
     if (els.ksmoStatusSeg) els.ksmoStatusSeg.hidden = !isKsmo;
     if (els.itemFilterWrap) els.itemFilterWrap.hidden = isKsmo;
+    if (els.exportBar) els.exportBar.hidden = isKsmo;
+    if (isKsmo) closeExportMenu();
+    else syncExportBar();
   }
 
   function renderKsmoMembers(entry) {
@@ -609,11 +773,77 @@
     );
   }
 
+  function renderTypeDupesAudit() {
+    const idx = ensureTypeDupeIndex();
+    const tokens = filterTokens(state.groupFilter);
+    const clusters = (idx?.clusters || []).filter((c) =>
+      matchesTokens(
+        [c.label, c.category, c.category_name, ...c.types.map((g) => `${g.code} ${g.name}`)].join(" "),
+        tokens
+      )
+    );
+    els.groupFilter.placeholder = "Фільтр: назва типу, категорія, код…";
+    els.groupsTitle.textContent = "Однакові типи";
+    setTitleCode(els.groupsCode, null);
+    els.groupsCount.textContent = clusters.length
+      ? `${fmt(clusters.length)} ${plural(clusters.length, ["група", "групи", "груп"])} · ${fmt(
+          clusters.reduce((s, c) => s + c.types.length, 0)
+        )} ${plural(
+          clusters.reduce((s, c) => s + c.types.length, 0),
+          FORMS_TYPES
+        )}`
+      : "немає";
+
+    const crumbs = els.viewGroups.querySelector(".crumbs");
+    if (crumbs) {
+      crumbs.innerHTML = `<button type="button" data-crumb="home">Усі категорії</button> <span class="crumb-sep">›</span> Аудит`;
+    }
+
+    if (!clusters.length) {
+      els.groupGrid.innerHTML = `<div class="empty">Немає однакових типів за цим фільтром</div>`;
+      return;
+    }
+
+    els.groupGrid.innerHTML = clusters
+      .map((c) => {
+        const rows = c.types
+          .map(
+            (g) => `
+          <div class="type-dupe-row">
+            <span class="mono">${escapeHtml(g.code)}</span>
+            <span class="type-dupe-name">${escapeHtml(g.name)}</span>
+            <span class="type-dupe-count">${fmt(g.count)} ${plural(g.count, FORMS_ITEMS)}</span>
+            <button type="button" class="type-dupe-open" data-group="${escapeHtml(g.code)}">Відкрити</button>
+          </div>`
+          )
+          .join("");
+        return `
+        <section class="type-dupe-cluster">
+          <div class="type-dupe-head">
+            <h3>${escapeHtml(c.label)}</h3>
+            <span class="type-dupe-meta">${escapeHtml(c.category_name || c.category)} · ×${c.types.length} · код ${escapeHtml(c.category)}</span>
+          </div>
+          <div class="type-dupe-rows">${rows}</div>
+        </section>`;
+      })
+      .join("");
+  }
+
   function renderGroups() {
+    if (isTypeDupesAudit()) {
+      renderTypeDupesAudit();
+      return;
+    }
+
     const cat = categoryByCode(state.category);
     els.groupFilter.placeholder = "Фільтр типів…";
     els.groupsTitle.textContent = cat ? cat.name : "Типи";
     setTitleCode(els.groupsCode, cat?.code);
+
+    const crumbs = els.viewGroups.querySelector(".crumbs");
+    if (crumbs) {
+      crumbs.innerHTML = `<button type="button" data-crumb="home">Усі категорії</button>`;
+    }
 
     const tokens = filterTokens(state.groupFilter);
     const inCategory = state.data.groups.filter(
@@ -862,6 +1092,13 @@
     const k = nameFacetFit(item).kind;
     return k === "bad" || k === "partial";
   };
+  // Дуже поганий збіг: жодного фасета в назві або менше 40% значень знайдено
+  const matchKindVeryBad = (item) => {
+    const fit = nameFacetFit(item);
+    if (fit.kind === "bad") return true;
+    if (fit.kind === "partial" && fit.total > 0 && fit.matched / fit.total < 0.4) return true;
+    return false;
+  };
 
   const applyStatus = (list) => {
     if (state.itemStatus === "cancelled") return list.filter((item) => !!item.cancelled);
@@ -870,9 +1107,32 @@
   };
   const applyNameMatch = (list) => {
     if (state.nameMatch === "ok") return list.filter(matchKindOk);
+    if (state.nameMatch === "vbad") return list.filter(matchKindVeryBad);
     if (state.nameMatch === "bad") return list.filter(matchKindBad);
     return list;
   };
+
+  const applyNameDupes = (list) => {
+    if (!state.nameDupes) return list;
+    const idx = ensureNameDupeIndex();
+    if (!idx) return list;
+    return list.filter((item) => idx.kmats.has(item.kmat));
+  };
+
+  const isMismatchAudit = () =>
+    state.mode === "ksm" &&
+    state.nameMatch === "vbad" &&
+    !state.nameDupes &&
+    !state.group &&
+    !state.category &&
+    !state.query;
+
+  const isNameDupesAudit = () =>
+    state.mode === "ksm" &&
+    state.nameDupes &&
+    !state.group &&
+    !state.category &&
+    !state.query;
 
   // Повертає { items, base, matchBase, total }:
   // base — усі фільтри, крім статусу (лічильники статусу);
@@ -895,17 +1155,45 @@
     if (q) pool = pool.filter((item) => itemMatches(item, q));
     const local = normalize(state.itemFilter);
     if (local) pool = pool.filter((item) => itemMatches(item, local));
+    pool = applyNameDupes(pool);
 
     const base = applyNameMatch(pool);
     const matchBase = applyStatus(pool);
     const list = applyNameMatch(matchBase);
 
-    const sorter = {
-      name: (a, b) => ukCompare(a.name, b.name),
-      kmat: (a, b) => ukCompare(a.kmat, b.kmat),
-      group: (a, b) =>
-        ukCompare(a.group_name, b.group_name) || ukCompare(a.name, b.name),
-    }[state.sort];
+    // За збігом: спочатку найгірші (0…1), потім повний збіг, без фасетів — в кінці
+    const matchScore = (item) => {
+      const f = nameFacetFit(item);
+      if (!f.total) return 2;
+      if (f.kind === "ok") return 1;
+      return f.matched / f.total;
+    };
+    // У аудиті дублів тримаємо пари поруч за нормалізованою назвою
+    const dupeCluster = (a, b) =>
+      ukCompare(normalizeNameKey(a.name), normalizeNameKey(b.name)) ||
+      ukCompare(a.name, b.name) ||
+      ukCompare(a.kmat, b.kmat);
+    const baseSorter =
+      state.nameDupes && (!state.sort || state.sort === "name")
+        ? dupeCluster
+        : {
+            name: (a, b) => ukCompare(a.name, b.name),
+            kmat: (a, b) => ukCompare(a.kmat, b.kmat),
+            group: (a, b) =>
+              ukCompare(a.group_name, b.group_name) || ukCompare(a.name, b.name),
+            match: (a, b) => matchScore(a) - matchScore(b) || ukCompare(a.name, b.name),
+            status: (a, b) =>
+              Number(!!a.cancelled) - Number(!!b.cancelled) || ukCompare(a.name, b.name),
+            int: (a, b) => ukCompare(a.int_code || "", b.int_code || "") || ukCompare(a.name, b.name),
+            unit: (a, b) => ukCompare(a.unit || "", b.unit || "") || ukCompare(a.name, b.name),
+            facets: (a, b) =>
+              (a.chars?.length || 0) - (b.chars?.length || 0) || ukCompare(a.name, b.name),
+          }[state.sort] || ((a, b) => ukCompare(a.name, b.name));
+    // У кластерах дублів напрямок не перевертаємо — пари мають лишатися разом
+    const keepDupeOrder = state.nameDupes && (!state.sort || state.sort === "name");
+    const sorter = keepDupeOrder
+      ? baseSorter
+      : (a, b) => applySortDir(baseSorter(a, b));
     // без розділу (глобальний пошук) знаменник — усе, що знайшов пошук
     const total = state.category || state.group ? scope.length : base.length;
     return {
@@ -1427,6 +1715,19 @@
       els.itemsTitle.textContent = `«${state.query}»`;
       setTitleCode(els.itemsCode, null);
       els.itemsSub.textContent = "з усього каталогу";
+    } else if (isMismatchAudit()) {
+      els.crumbs.innerHTML = `<button type="button" data-crumb="home">Усі категорії</button> <span class="crumb-sep">›</span> Аудит`;
+      els.itemsTitle.textContent = "Назва ≠ фасети";
+      setTitleCode(els.itemsCode, null);
+      els.itemsSub.textContent =
+        "активні позиції, де назва майже не зібрана з фасетів (0 збігів або менше 40%)";
+    } else if (isNameDupesAudit()) {
+      const idx = ensureNameDupeIndex();
+      els.crumbs.innerHTML = `<button type="button" data-crumb="home">Усі категорії</button> <span class="crumb-sep">›</span> Аудит`;
+      els.itemsTitle.textContent = "Майже однакові назви";
+      setTitleCode(els.itemsCode, null);
+      els.itemsSub.textContent =
+        `активні з однаковою або майже однаковою назвою · ${fmt(idx?.count || 0)} позицій`;
     } else if (group) {
       // crumbs — лише предки; поточну назву показує h1
       els.crumbs.innerHTML = `
@@ -1443,6 +1744,11 @@
       els.itemsTitle.textContent = cat.name;
       setTitleCode(els.itemsCode, cat.code);
       els.itemsSub.textContent = "усі позиції розділу";
+    } else {
+      els.crumbs.innerHTML = `<button type="button" data-crumb="home">Усі категорії</button>`;
+      els.itemsTitle.textContent = "Усі позиції";
+      setTitleCode(els.itemsCode, null);
+      els.itemsSub.textContent = "з усього каталогу";
     }
 
     renderFacetFilters();
@@ -1461,12 +1767,14 @@
       total
     );
     const matchOkCount = matchBase.filter(matchKindOk).length;
+    const matchVbadCount = matchBase.filter(matchKindVeryBad).length;
     const matchBadCount = matchBase.filter(matchKindBad).length;
     renderSeg(
       els.itemMatchSeg,
       [
         { value: "", label: "Усі", count: matchBase.length },
         { value: "ok", label: "Збіг", count: matchOkCount, tone: "ok" },
+        { value: "vbad", label: "Сильно", count: matchVbadCount, tone: "warn" },
         { value: "bad", label: "Ні", count: matchBadCount, tone: "warn" },
       ],
       state.nameMatch,
@@ -1480,14 +1788,25 @@
       items,
       (item) => {
         const active = item.kmat === state.selectedKmat ? "active" : "";
+        const checked = checkedKmats.has(item.kmat) ? " checked" : "";
         const groupCell = showGroup
           ? `<td><div class="name-cell" style="font-weight:600">${escapeHtml(item.group_name)}</div></td>`
           : "";
+        const dupeSize = state.nameDupes
+          ? ensureNameDupeIndex()?.sizeByKmat.get(item.kmat)
+          : 0;
+        const dupeMark =
+          dupeSize > 1
+            ? `<span class="dupe-mark" title="У групі майже однакових назв: ${dupeSize}">×${dupeSize}</span>`
+            : "";
         return `
-          <tr class="${active}${item.cancelled ? " is-cancelled" : ""}" data-kmat="${escapeHtml(item.kmat)}">
+          <tr class="${active}${item.cancelled ? " is-cancelled" : ""}${checkedKmats.has(item.kmat) ? " is-checked" : ""}" data-kmat="${escapeHtml(item.kmat)}">
+            <td class="col-check">
+              <input type="checkbox" class="row-check" data-check-kmat="${escapeHtml(item.kmat)}" aria-label="Відмітити позицію"${checked} />
+            </td>
             <td class="col-status">${statusPill(null, !!item.cancelled)}</td>
             <td>
-              <div class="name-cell">${escapeHtml(item.name)}</div>
+              <div class="name-cell">${escapeHtml(item.name)}${dupeMark}</div>
             </td>
             ${groupCell}
             <td class="col-match">${matchPill(item)}</td>
@@ -1501,6 +1820,8 @@
       els.rows,
       ensureIdx
     );
+    syncSelectAll(items);
+    syncExportBar();
 
     if (state.selectedKmat && !items.some((i) => i.kmat === state.selectedKmat)) {
       state.selectedKmat = items[0]?.kmat || null;
@@ -1616,10 +1937,103 @@
     state.group = null;
     state.selectedKsmo = null;
     state.facetFilters = {};
+    state.itemStatus = "";
+    state.nameMatch = "";
+    state.nameDupes = false;
+    state.typeDupes = false;
     state.query = "";
     els.search.value = "";
     els.searchClear.hidden = true;
     showView("home");
+  }
+
+  // Увесь каталог KSM: лише активні з дуже поганим збігом назви ↔ фасети
+  function openMismatchAudit() {
+    state.mode = "ksm";
+    updateModeButtons();
+    state.category = null;
+    state.group = null;
+    state.selectedKsmo = null;
+    state.facetFilters = {};
+    state.showAllFacets = false;
+    state.selectedKmat = null;
+    pickedKmat = null;
+    state.itemFilter = "";
+    if (els.itemFilter) els.itemFilter.value = "";
+    state.query = "";
+    els.search.value = "";
+    els.searchClear.hidden = true;
+    state.nameDupes = false;
+    state.typeDupes = false;
+    state.itemStatus = "active";
+    state.nameMatch = "vbad";
+    state.sort = "match";
+    state.sortDir = "asc";
+    const howPanel = $("how-it-works");
+    const howToggle = $("how-toggle");
+    if (howPanel) howPanel.hidden = true;
+    howToggle?.setAttribute("aria-expanded", "false");
+    showView("items");
+  }
+
+  // Активні з однаковою / майже однаковою назвою (пробіли, пунктуація, укр↔рос)
+  function openNameDupesAudit() {
+    state.mode = "ksm";
+    updateModeButtons();
+    ensureNameDupeIndex();
+    state.category = null;
+    state.group = null;
+    state.selectedKsmo = null;
+    state.facetFilters = {};
+    state.showAllFacets = false;
+    state.selectedKmat = null;
+    pickedKmat = null;
+    state.itemFilter = "";
+    if (els.itemFilter) els.itemFilter.value = "";
+    state.query = "";
+    els.search.value = "";
+    els.searchClear.hidden = true;
+    state.nameMatch = "";
+    state.typeDupes = false;
+    state.nameDupes = true;
+    state.itemStatus = "active";
+    state.sort = "name";
+    state.sortDir = "asc";
+    const howPanel = $("how-it-works");
+    const howToggle = $("how-toggle");
+    if (howPanel) howPanel.hidden = true;
+    howToggle?.setAttribute("aria-expanded", "false");
+    showView("items");
+  }
+
+  // Типи з однаковою / майже однаковою назвою в одній категорії
+  function openTypeDupesAudit() {
+    state.mode = "ksm";
+    updateModeButtons();
+    ensureTypeDupeIndex();
+    state.category = null;
+    state.group = null;
+    state.selectedKsmo = null;
+    state.facetFilters = {};
+    state.showAllFacets = false;
+    state.selectedKmat = null;
+    pickedKmat = null;
+    state.itemFilter = "";
+    if (els.itemFilter) els.itemFilter.value = "";
+    state.groupFilter = "";
+    if (els.groupFilter) els.groupFilter.value = "";
+    state.query = "";
+    els.search.value = "";
+    els.searchClear.hidden = true;
+    state.nameMatch = "";
+    state.nameDupes = false;
+    state.typeDupes = true;
+    state.itemStatus = "";
+    const howPanel = $("how-it-works");
+    const howToggle = $("how-toggle");
+    if (howPanel) howPanel.hidden = true;
+    howToggle?.setAttribute("aria-expanded", "false");
+    showView("groups");
   }
 
   function resetNavSoft() {
@@ -1637,6 +2051,8 @@
     state.category = code;
     state.group = null;
     state.selectedKsmo = null;
+    state.nameDupes = false;
+    state.typeDupes = false;
     resetNavSoft();
     state.query = "";
     els.search.value = "";
@@ -1653,6 +2069,8 @@
     state.group = code;
     state.category = g.category;
     state.selectedKsmo = null;
+    state.nameDupes = false;
+    // typeDupes лишаємо: «←» з позицій поверне до списку однакових типів
     state.facetFilters = {};
     state.selectedKmat = null;
     state.itemFilter = "";
@@ -1705,6 +2123,232 @@
     showView("items");
   }
 
+  function closeExportMenu() {
+    if (!els.exportDropdown || !els.exportToggle) return;
+    els.exportDropdown.hidden = true;
+    els.exportToggle.setAttribute("aria-expanded", "false");
+  }
+
+  function syncExportBar() {
+    if (!els.exportBar || state.mode === "ksmo") return;
+    const n = checkedKmats.size;
+    if (els.exportCount) {
+      els.exportCount.textContent = fmt(n);
+      els.exportCount.title = n
+        ? `${fmt(n)} ${plural(n, ["відмічена", "відмічені", "відмічено"])}`
+        : "Нічого не відмічено";
+    }
+    if (els.exportToggle) {
+      els.exportToggle.disabled = n === 0;
+      els.exportToggle.title = n
+        ? `Зберегти ${fmt(n)} ${plural(n, ["позицію", "позиції", "позицій"])}`
+        : "Спочатку відмітьте позиції";
+    }
+    if (els.exportClear) els.exportClear.hidden = n === 0;
+    if (n === 0) closeExportMenu();
+  }
+
+  function syncSelectAll(items) {
+    const box = $("select-all-ksm");
+    if (!box) return;
+    const list = items || infinite.main.list || [];
+    if (!list.length) {
+      box.checked = false;
+      box.indeterminate = false;
+      box.disabled = true;
+      return;
+    }
+    box.disabled = false;
+    let selected = 0;
+    for (const it of list) if (checkedKmats.has(it.kmat)) selected += 1;
+    box.checked = selected === list.length;
+    box.indeterminate = selected > 0 && selected < list.length;
+  }
+
+  function setChecked(kmat, on) {
+    if (on) checkedKmats.add(kmat);
+    else checkedKmats.delete(kmat);
+    const row = els.rows?.querySelector(`tr[data-kmat="${CSS.escape(kmat)}"]`);
+    if (row) {
+      row.classList.toggle("is-checked", on);
+      const input = row.querySelector(".row-check");
+      if (input) input.checked = on;
+    }
+    syncSelectAll();
+    syncExportBar();
+  }
+
+  function clearChecked() {
+    checkedKmats.clear();
+    els.rows?.querySelectorAll("tr.is-checked").forEach((tr) => tr.classList.remove("is-checked"));
+    els.rows?.querySelectorAll(".row-check").forEach((input) => {
+      input.checked = false;
+    });
+    syncSelectAll();
+    syncExportBar();
+  }
+
+  function checkedItems() {
+    const out = [];
+    for (const kmat of checkedKmats) {
+      const item = itemByKmat(kmat);
+      if (item) out.push(item);
+    }
+    out.sort((a, b) => ukCompare(a.name, b.name) || ukCompare(a.kmat, b.kmat));
+    return out;
+  }
+
+  function itemFacetExport(item) {
+    return (item.chars || [])
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.position ?? 999) - (b.position ?? 999) ||
+          ukCompare(a.name || a.code || "", b.name || b.code || "")
+      )
+      .map((c) => ({
+        code: c.code || "",
+        name: c.name || c.code || "",
+        value: c.value ?? "",
+        value_code: c.value_code ?? null,
+      }));
+  }
+
+  function exportRows(items) {
+    return items.map((item) => ({
+      status: item.cancelled ? "скасована" : "активна",
+      name: item.name || "",
+      group: item.group_name || "",
+      group_code: item.group || "",
+      category: item.category_name || "",
+      category_code: item.category || "",
+      int_code: item.int_code || "",
+      kmat: item.kmat || "",
+      unit: item.unit || "",
+      facets: item.chars?.length || 0,
+      match: (() => {
+        const f = nameFacetFit(item);
+        if (!f.total) return "";
+        if (f.kind === "ok") return "збіг";
+        return `${f.matched}/${f.total}`;
+      })(),
+    }));
+  }
+
+  const EXPORT_HEADERS = [
+    ["status", "Статус"],
+    ["name", "Найменування"],
+    ["group", "Тип / група"],
+    ["group_code", "Код типу"],
+    ["category", "Категорія"],
+    ["category_code", "Код категорії"],
+    ["int_code", "Код 1С"],
+    ["kmat", "Код позиції (KMAT)"],
+    ["unit", "Од."],
+    ["facets", "Фасети"],
+    ["match", "Збіг назви"],
+  ];
+
+  function csvEscape(value, sep) {
+    const text = String(value ?? "");
+    if (/["\r\n]/.test(text) || text.includes(sep)) {
+      return `"${text.replaceAll('"', '""')}"`;
+    }
+    return text;
+  }
+
+  function toDelimited(rows, sep) {
+    const lines = [
+      EXPORT_HEADERS.map(([, title]) => csvEscape(title, sep)).join(sep),
+      ...rows.map((row) =>
+        EXPORT_HEADERS.map(([key]) => csvEscape(row[key], sep)).join(sep)
+      ),
+    ];
+    return lines.join("\r\n");
+  }
+
+  function toExcelHtml(rows) {
+    const head = EXPORT_HEADERS.map(([, title]) => `<th>${escapeHtml(title)}</th>`).join("");
+    const body = rows
+      .map(
+        (row) =>
+          `<tr>${EXPORT_HEADERS.map(([key]) => `<td>${escapeHtml(row[key])}</td>`).join("")}</tr>`
+      )
+      .join("");
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8" /></head><body><table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+  }
+
+  function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function exportStamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+
+  function exportChecked(format) {
+    const items = checkedItems();
+    if (!items.length) return;
+    const rows = exportRows(items);
+    const stamp = exportStamp();
+    if (format === "json") {
+      // У JSON — повні фасети (назва + значення), а не лише кількість; match не пишемо
+      const jsonRows = items.map((item, i) => {
+        const { match: _match, ...rest } = rows[i];
+        return {
+          ...rest,
+          facets: itemFacetExport(item),
+        };
+      });
+      downloadBlob(
+        `ksm-selected-${stamp}.json`,
+        new Blob([JSON.stringify(jsonRows, null, 2)], {
+          type: "application/json;charset=utf-8",
+        })
+      );
+      return;
+    }
+    if (format === "tsv") {
+      downloadBlob(
+        `ksm-selected-${stamp}.tsv`,
+        new Blob(["\uFEFF" + toDelimited(rows, "\t")], { type: "text/tab-separated-values;charset=utf-8" })
+      );
+      return;
+    }
+    if (format === "xls") {
+      downloadBlob(
+        `ksm-selected-${stamp}.xls`,
+        new Blob([toExcelHtml(rows)], { type: "application/vnd.ms-excel;charset=utf-8" })
+      );
+      return;
+    }
+    // CSV з ; — зручно відкривається в Excel з українською локаллю
+    downloadBlob(
+      `ksm-selected-${stamp}.csv`,
+      new Blob(["\uFEFF" + toDelimited(rows, ";")], { type: "text/csv;charset=utf-8" })
+    );
+  }
+
+  function setSortBy(key) {
+    if (!key) return;
+    if (state.sort === key) {
+      state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+    } else {
+      state.sort = key;
+      state.sortDir = "asc";
+    }
+    renderItems();
+  }
+
   // З довідника KSMO — у каталог KSM: тип цієї позиції, вона вибрана й прокручена в поле зору.
   // Фільтри скидаємо, щоб позиція точно була в списку (скасовані теж).
   function openInKsmCatalog(kmat) {
@@ -1718,6 +2362,8 @@
     state.facetFilters = {};
     state.itemStatus = "";
     state.nameMatch = "";
+    state.nameDupes = false;
+    state.typeDupes = false;
     state.itemFilter = "";
     if (els.itemFilter) els.itemFilter.value = "";
     state.query = "";
@@ -1743,7 +2389,10 @@
     if (els.ksmoNameFilter) els.ksmoNameFilter.value = "";
     state.itemStatus = "";
     state.nameMatch = "";
+    state.nameDupes = false;
+    state.typeDupes = false;
     state.showAllFacets = false;
+    checkedKmats.clear();
     resetNavSoft();
     state.query = "";
     els.search.value = "";
@@ -1767,6 +2416,9 @@
       else showView("home");
       return;
     }
+
+    state.nameDupes = false;
+    state.typeDupes = false;
 
     if (state.mode === "ksmo") {
       // глобальний пошук по всіх KSMO; локальний фільтр — якщо вже в категорії
@@ -1900,6 +2552,8 @@
       state.ksmoStatus = "";
       state.itemStatus = "";
       state.nameMatch = "";
+      state.nameDupes = false;
+      state.typeDupes = false;
       state.category = r.cat;
       state.group = r.mode === "ksm" ? r.group : null;
       state.selectedKsmo = r.mode === "ksmo" ? r.ksmo : null;
@@ -1958,11 +2612,21 @@
       showView("home");
       return;
     }
-    if (state.query && !state.group) {
-      state.query = "";
-      els.search.value = "";
-      els.searchClear.hidden = true;
-      showView("home");
+    if (isMismatchAudit() || isNameDupesAudit() || (state.query && !state.group)) {
+      goHome();
+      return;
+    }
+    // з позицій типу, відкритого з аудиту — назад до списку однакових типів
+    if (state.typeDupes && state.group) {
+      state.group = null;
+      state.category = null;
+      state.facetFilters = {};
+      state.selectedKmat = null;
+      showView("groups");
+      return;
+    }
+    if (isTypeDupesAudit()) {
+      goHome();
       return;
     }
     state.group = null;
@@ -2008,6 +2672,9 @@
     howPanel.hidden = !open;
     howToggle.setAttribute("aria-expanded", String(open));
   });
+  $("mismatch-audit")?.addEventListener("click", () => openMismatchAudit());
+  $("name-dupes-audit")?.addEventListener("click", () => openNameDupesAudit());
+  $("type-dupes-audit")?.addEventListener("click", () => openTypeDupesAudit());
 
   els.categoryFilter?.addEventListener("input", () => {
     state.categoryFilter = els.categoryFilter.value.trim();
@@ -2058,9 +2725,51 @@
     }, 120);
   });
 
-  els.sort.addEventListener("change", () => {
-    state.sort = els.sort.value;
-    renderItems();
+  els.mainThead?.addEventListener("click", (e) => {
+    const checkAll = e.target.closest("#select-all-ksm");
+    if (checkAll) {
+      e.stopPropagation();
+      const list = infinite.main.list || [];
+      if (checkAll.checked) list.forEach((it) => checkedKmats.add(it.kmat));
+      else list.forEach((it) => checkedKmats.delete(it.kmat));
+      els.rows?.querySelectorAll("tr[data-kmat]").forEach((tr) => {
+        const on = checkedKmats.has(tr.dataset.kmat);
+        tr.classList.toggle("is-checked", on);
+        const input = tr.querySelector(".row-check");
+        if (input) input.checked = on;
+      });
+      syncSelectAll(list);
+      syncExportBar();
+      return;
+    }
+    const th = e.target.closest("th[data-sort]");
+    if (!th) return;
+    setSortBy(th.dataset.sort);
+  });
+
+  els.exportToggle?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!els.exportDropdown || els.exportToggle.disabled) return;
+    const open = els.exportDropdown.hidden;
+    els.exportDropdown.hidden = !open;
+    els.exportToggle.setAttribute("aria-expanded", String(open));
+  });
+
+  els.exportDropdown?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-export]");
+    if (!btn) return;
+    exportChecked(btn.dataset.export);
+    closeExportMenu();
+  });
+
+  els.exportClear?.addEventListener("click", () => {
+    clearChecked();
+    closeExportMenu();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!els.exportBar || els.exportBar.contains(e.target)) return;
+    closeExportMenu();
   });
 
   els.clearFacets.addEventListener("click", () => {
@@ -2091,6 +2800,17 @@
   });
 
   els.rows.addEventListener("click", (e) => {
+    const check = e.target.closest(".row-check, .col-check");
+    if (check) {
+      e.stopPropagation();
+      const input = e.target.closest(".row-check") || check.querySelector?.(".row-check");
+      if (input?.dataset.checkKmat) {
+        // клік по клітинці (не самому input) — перемикаємо вручну
+        if (e.target !== input) input.checked = !input.checked;
+        setChecked(input.dataset.checkKmat, input.checked);
+      }
+      return;
+    }
     const ksmoRow = e.target.closest("tr[data-ksmo]");
     if (ksmoRow) {
       state.selectedKsmo = ksmoRow.dataset.ksmo;
@@ -2115,6 +2835,12 @@
     const item = itemByKmat(state.selectedKmat);
     renderDetail(item);
     syncUrl();
+  });
+
+  els.rows.addEventListener("change", (e) => {
+    const input = e.target.closest(".row-check");
+    if (!input?.dataset.checkKmat) return;
+    setChecked(input.dataset.checkKmat, input.checked);
   });
 
   els.memberRows?.addEventListener("click", (e) => {

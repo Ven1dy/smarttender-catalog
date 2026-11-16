@@ -49,10 +49,39 @@
               <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
               <input id="category-filter" type="search" placeholder="Фільтр категорій: назва або код…" autocomplete="off" aria-label="Фільтр категорій" />
             </label>
-            <button type="button" class="how-toggle" id="how-toggle" aria-expanded="false" aria-controls="how-it-works">
-              <span class="how-btn-icon" aria-hidden="true">?</span>
-              <span>Як це працює?</span>
-            </button>
+            <div class="home-actions">
+              <button
+                type="button"
+                class="how-toggle mismatch-toggle"
+                id="mismatch-audit"
+                title="Активні KSM, у яких назва майже не зібрана з фасетів (0 збігів або менше 40%)"
+              >
+                <span class="how-btn-icon" aria-hidden="true">≠</span>
+                <span>Назва ≠ фасети</span>
+              </button>
+              <button
+                type="button"
+                class="how-toggle name-dupes-toggle"
+                id="name-dupes-audit"
+                title="Активні KSM з однаковою або майже однаковою назвою (пробіли, пунктуація, укр/рос)"
+              >
+                <span class="how-btn-icon" aria-hidden="true">≈</span>
+                <span>Майже однакові назви</span>
+              </button>
+              <button
+                type="button"
+                class="how-toggle type-dupes-toggle"
+                id="type-dupes-audit"
+                title="Типи з однаковою або майже однаковою назвою всередині однієї категорії"
+              >
+                <span class="how-btn-icon" aria-hidden="true">⧉</span>
+                <span>Однакові типи</span>
+              </button>
+              <button type="button" class="how-toggle" id="how-toggle" aria-expanded="false" aria-controls="how-it-works">
+                <span class="how-btn-icon" aria-hidden="true">?</span>
+                <span>Як це працює?</span>
+              </button>
+            </div>
           </div>
         </div>
         <div class="panel-body">
@@ -112,10 +141,11 @@
                     <span class="seg is-demo" aria-hidden="true">
                       <span class="seg-btn">Усі <span class="seg-count">890</span></span>
                       <span class="seg-btn is-on tone-ok">Збіг <span class="seg-count">120</span></span>
+                      <span class="seg-btn tone-warn">Сильно <span class="seg-count">40</span></span>
                       <span class="seg-btn tone-warn">Ні <span class="seg-count">770</span></span>
                     </span>
                   </dt>
-                  <dd>Збіг назви з фасетами. У таблиці колонка «Збіг»: ✓ збіг, ≈ частково (N/M), ✕ ні.</dd>
+                  <dd>Збіг назви з фасетами. «Сильно» — 0 збігів або менше 40%. У таблиці: ✓ збіг, ≈ частково (N/M), ✕ ні. На головній: «Назва ≠ фасети» — сильний розрив; «Майже однакові назви» — активні з однаковим текстом; «Однакові типи» — типи з однаковою назвою в одній категорії.</dd>
                 </div>
                 <div>
                   <dt>
@@ -131,8 +161,12 @@
                   <dd>Скільки позицій лишилось після фільтрів і скільки всього в типі.</dd>
                 </div>
                 <div>
-                  <dt><span class="how-key">⇅ За назвою</span></dt>
-                  <dd>Сортування: за назвою, кодом KMAT або групою.</dd>
+                  <dt><span class="how-key">Клік по шапці</span></dt>
+                  <dd>Сортування таблиці: клік по назві колонки — сортувати, повторний клік — змінити напрямок (▲/▼).</dd>
+                </div>
+                <div>
+                  <dt><span class="how-key">☑ + 💾</span></dt>
+                  <dd>Галочки в рядках — відмітити позиції; іконка дискети зберігає відмічені у CSV, TSV, JSON або Excel.</dd>
                 </div>
               </dl>
             </div>
@@ -142,6 +176,8 @@
                 <li><strong>Пошук</strong> зверху шукає по всьому каталогу: назва, код KMAT, ГОСТ. Кілька слів — знайдуться позиції, де є всі.</li>
                 <li><strong>Рядок таблиці</strong> — клік відкриває справа картку позиції з усіма фасетами та кодами.</li>
                 <li><strong>Скасовані</strong> позиції більше не використовуються. Щоб бачити лише робочі — оберіть «Активні».</li>
+                <li><strong>Назва ≠ фасети</strong> на головній — швидкий список активних KSM, де назва майже не збігається з фасетами.</li>
+                <li><strong>Однакові типи</strong> — кластери типів з однаковою/майже однаковою назвою в одній категорії; «Відкрити» веде до позицій типу.</li>
                 <li><strong>←</strong> або шлях «Усі категорії › …» над назвою повертають на крок назад.</li>
                 <li><strong>KSM / KSMO</strong> у шапці перемикає на довідник кодів 1С.</li>
               </ul>
@@ -246,16 +282,18 @@
         <div class="content" id="items-content">
           <div class="table-card" id="main-card">
             <div class="card-tools">
-              <div class="tools-row">
-                <button type="button" class="back-btn" id="back-to-groups" title="Назад" aria-label="Назад">←</button>
-                <div class="tools-title">
-                  <div class="crumbs" id="crumbs"></div>
-                  <div class="title-line">
-                    <span class="title-code" id="items-code" hidden></span>
-                    <h1 id="items-title">Позиції</h1>
-                    <span class="count-note" id="result-count">—</span>
+              <div class="tools-row items-tools-top">
+                <div class="tools-lead">
+                  <button type="button" class="back-btn" id="back-to-groups" title="Назад" aria-label="Назад">←</button>
+                  <div class="tools-title">
+                    <div class="crumbs" id="crumbs"></div>
+                    <div class="title-line">
+                      <span class="title-code" id="items-code" hidden></span>
+                      <h1 id="items-title">Позиції</h1>
+                      <span class="count-note" id="result-count">—</span>
+                    </div>
+                    <p id="items-sub" class="tools-sub"></p>
                   </div>
-                  <p id="items-sub" class="tools-sub"></p>
                 </div>
                 <label class="tool-field search-field items-filter" id="item-filter-wrap">
                   <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -265,18 +303,31 @@
                   <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
                   <input id="ksmo-name-filter" type="search" placeholder="Фільтр KSMO: назва або код 1С…" autocomplete="off" aria-label="Фільтр KSMO" />
                 </label>
+              </div>
+              <div class="tools-row items-tools-filters">
                 <div class="tools-actions">
                   <div class="seg" id="item-status-seg" role="group" aria-label="Статус позиції"></div>
                   <div class="seg" id="item-match-seg" role="group" aria-label="Збіг назви з фасетами"></div>
                   <div class="seg" id="ksmo-status-seg" role="group" aria-label="Статус KSMO" hidden></div>
-                  <label class="tool-field sort-field" title="Сортування">
-                    <span aria-hidden="true">⇅</span>
-                    <select id="sort" aria-label="Сортування">
-                      <option value="name">За назвою</option>
-                      <option value="kmat">За кодом</option>
-                      <option value="group">За групою / кількістю</option>
-                    </select>
-                  </label>
+                  <div class="export-bar" id="export-bar" hidden>
+                    <span class="export-count" id="export-count" title="Нічого не відмічено">0</span>
+                    <button type="button" class="linkish export-clear" id="export-clear" hidden title="Зняти всі" aria-label="Зняти всі">×</button>
+                    <div class="export-menu">
+                      <button type="button" class="export-toggle" id="export-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Зберегти відмічені" title="Зберегти" disabled>
+                        <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                          <path d="M17 21v-8H7v8" />
+                          <path d="M7 3v5h8" />
+                        </svg>
+                      </button>
+                      <div class="export-dropdown" id="export-dropdown" hidden role="menu">
+                        <button type="button" role="menuitem" data-export="csv">CSV (Excel)</button>
+                        <button type="button" role="menuitem" data-export="tsv">TSV</button>
+                        <button type="button" role="menuitem" data-export="json">JSON</button>
+                        <button type="button" role="menuitem" data-export="xls">Excel (.xls)</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="facet-bar" id="filters" hidden>
@@ -288,14 +339,17 @@
               <table id="main-table">
                 <thead id="main-thead">
                   <tr>
-                    <th class="col-status">Статус</th>
-                    <th>Що це</th>
-                    <th>Тип / група</th>
-                    <th class="col-match" title="Чи складена назва зі значень фасетів">Збіг</th>
-                    <th class="col-int">Код 1С</th>
-                    <th class="codes-only">Код позиції</th>
-                    <th>Од.</th>
-                    <th title="Кількість фасетів у позиції">Фас.</th>
+                    <th class="col-check">
+                      <input type="checkbox" id="select-all-ksm" aria-label="Відмітити всі видимі" />
+                    </th>
+                    <th class="col-status th-sort" data-sort="status">Статус</th>
+                    <th class="th-sort" data-sort="name">Що це</th>
+                    <th class="th-sort" data-sort="group">Тип / група</th>
+                    <th class="col-match th-sort" data-sort="match" title="Чи складена назва зі значень фасетів">Збіг</th>
+                    <th class="col-int th-sort" data-sort="int">Код 1С</th>
+                    <th class="codes-only th-sort" data-sort="kmat">Код позиції</th>
+                    <th class="th-sort" data-sort="unit">Од.</th>
+                    <th class="th-sort" data-sort="facets" title="Кількість фасетів у позиції">Фас.</th>
                   </tr>
                 </thead>
                 <tbody id="rows"></tbody>

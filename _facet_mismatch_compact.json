@@ -1,0 +1,718 @@
+{
+ "summary": {
+  "active": 13232,
+  "kinds": {
+   "partial": 11489,
+   "none": 7,
+   "bad": 247,
+   "ok": 1489
+  },
+  "very_bad": 1026,
+  "very_bad_bad": 247,
+  "very_bad_partial_lt40": 779,
+  "criterion": "active + (kind=bad OR match_ratio < 0.4), same logic as web nameFacetFit"
+ },
+ "ratio_buckets": {
+  "0.4-0.6": 1156,
+  "none": 7,
+  "0.0": 247,
+  "0.8-1.0_partial": 4073,
+  "0.6-0.8": 5481,
+  "0.25-0.4": 564,
+  "1.0_ok": 1489,
+  "0-0.25": 215
+ },
+ "primary_cause_items": {
+  "numeric_format": 152,
+  "verbose_label": 463,
+  "absent_in_name": 286,
+  "should_match": 93,
+  "partial_numeric": 31,
+  "gost_in_value": 1
+ },
+ "cause_counts": {
+  "numeric_format": 599,
+  "verbose_label": 925,
+  "absent_in_name": 1336,
+  "should_match": 393,
+  "partial_numeric": 144,
+  "gost_in_value": 19
+ },
+ "by_category": [
+  {
+   "code": "M1",
+   "name": "Чёрный металлопрокат",
+   "very_bad": 396,
+   "active": 783,
+   "share": 0.506,
+   "kinds": {
+    "bad": 56,
+    "partial": 726,
+    "ok": 1
+   }
+  },
+  {
+   "code": "M2",
+   "name": "Нержавейка и спецстали",
+   "very_bad": 242,
+   "active": 465,
+   "share": 0.52,
+   "kinds": {
+    "partial": 366,
+    "bad": 99
+   }
+  },
+  {
+   "code": "M6",
+   "name": "Подшипники и уплотнения",
+   "very_bad": 110,
+   "active": 807,
+   "share": 0.136,
+   "kinds": {
+    "partial": 788,
+    "bad": 5,
+    "ok": 14
+   }
+  },
+  {
+   "code": "M3",
+   "name": "Цветные металлы",
+   "very_bad": 99,
+   "active": 126,
+   "share": 0.786,
+   "kinds": {
+    "partial": 93,
+    "bad": 33
+   }
+  },
+  {
+   "code": "M4",
+   "name": "Сварочные материалы",
+   "very_bad": 68,
+   "active": 111,
+   "share": 0.613,
+   "kinds": {
+    "partial": 82,
+    "bad": 29
+   }
+  },
+  {
+   "code": "P2",
+   "name": "Плёнка, бумага, расходники упаковки",
+   "very_bad": 22,
+   "active": 255,
+   "share": 0.086,
+   "kinds": {
+    "partial": 226,
+    "none": 1,
+    "ok": 26,
+    "bad": 2
+   }
+  },
+  {
+   "code": "MD",
+   "name": "Техническая резина и пластики",
+   "very_bad": 20,
+   "active": 83,
+   "share": 0.241,
+   "kinds": {
+    "partial": 75,
+    "bad": 8
+   }
+  },
+  {
+   "code": "MM",
+   "name": "Хозтовары и химия для уборки",
+   "very_bad": 20,
+   "active": 365,
+   "share": 0.055,
+   "kinds": {
+    "partial": 182,
+    "ok": 183
+   }
+  },
+  {
+   "code": "P1",
+   "name": "Упаковка под продукты",
+   "very_bad": 14,
+   "active": 6614,
+   "share": 0.002,
+   "kinds": {
+    "partial": 5958,
+    "ok": 655,
+    "none": 1
+   }
+  },
+  {
+   "code": "FU",
+   "name": "Масла и смазки",
+   "very_bad": 11,
+   "active": 330,
+   "share": 0.033,
+   "kinds": {
+    "partial": 270,
+    "bad": 5,
+    "ok": 55
+   }
+  },
+  {
+   "code": "P0",
+   "name": "Ингредиенты и сырьё",
+   "very_bad": 6,
+   "active": 836,
+   "share": 0.007,
+   "kinds": {
+    "partial": 398,
+    "bad": 3,
+    "ok": 434,
+    "none": 1
+   }
+  },
+  {
+   "code": "M9",
+   "name": "Ленты, ремни и профили",
+   "very_bad": 6,
+   "active": 1132,
+   "share": 0.005,
+   "kinds": {
+    "partial": 1132
+   }
+  }
+ ],
+ "by_group_top": [
+  {
+   "code": "M1122",
+   "name": "Труба",
+   "very_bad": 33,
+   "active": 33,
+   "share": 1.0,
+   "category": "M1"
+  },
+  {
+   "code": "M6102",
+   "name": "Кільце",
+   "very_bad": 30,
+   "active": 30,
+   "share": 1.0,
+   "category": "M6"
+  },
+  {
+   "code": "M1111",
+   "name": "Труба",
+   "very_bad": 30,
+   "active": 30,
+   "share": 1.0,
+   "category": "M1"
+  },
+  {
+   "code": "M202C",
+   "name": "Круг",
+   "very_bad": 27,
+   "active": 27,
+   "share": 1.0,
+   "category": "M2"
+  },
+  {
+   "code": "M1232",
+   "name": "Кутник ст3",
+   "very_bad": 23,
+   "active": 23,
+   "share": 1.0,
+   "category": "M1"
+  },
+  {
+   "code": "M6103",
+   "name": "Кільце",
+   "very_bad": 22,
+   "active": 22,
+   "share": 1.0,
+   "category": "M6"
+  },
+  {
+   "code": "M2027",
+   "name": "Круг 40х",
+   "very_bad": 22,
+   "active": 22,
+   "share": 1.0,
+   "category": "M2"
+  },
+  {
+   "code": "M3062",
+   "name": "Пруток дшгхх",
+   "very_bad": 18,
+   "active": 18,
+   "share": 1.0,
+   "category": "M3"
+  },
+  {
+   "code": "M302A",
+   "name": "Пруток",
+   "very_bad": 15,
+   "active": 15,
+   "share": 1.0,
+   "category": "M3"
+  },
+  {
+   "code": "M3023",
+   "name": "Пруток пкрнт",
+   "very_bad": 14,
+   "active": 14,
+   "share": 1.0,
+   "category": "M3"
+  },
+  {
+   "code": "MD100",
+   "name": "Пластина",
+   "very_bad": 11,
+   "active": 11,
+   "share": 1.0,
+   "category": "MD"
+  },
+  {
+   "code": "M202G",
+   "name": "Круг",
+   "very_bad": 11,
+   "active": 11,
+   "share": 1.0,
+   "category": "M2"
+  },
+  {
+   "code": "M1231",
+   "name": "Кутник ст3сп",
+   "very_bad": 11,
+   "active": 11,
+   "share": 1.0,
+   "category": "M1"
+  },
+  {
+   "code": "M208G",
+   "name": "Круг AISI",
+   "very_bad": 9,
+   "active": 9,
+   "share": 1.0,
+   "category": "M2"
+  },
+  {
+   "code": "M4011",
+   "name": "Зварювальний дріт",
+   "very_bad": 8,
+   "active": 8,
+   "share": 1.0,
+   "category": "M4"
+  }
+ ],
+ "top_facets": [
+  [
+   "Длина при поставке",
+   547
+  ],
+  [
+   "Прокат круглый",
+   185
+  ],
+  [
+   "Толщина стенки тр.",
+   100
+  ],
+  [
+   "Точность проката",
+   72
+  ],
+  [
+   "Тип манжети",
+   56
+  ],
+  [
+   "Виконання 1",
+   56
+  ],
+  [
+   "Ряд манжети",
+   56
+  ],
+  [
+   "Ширина манжети",
+   56
+  ],
+  [
+   "Способ изготовления",
+   55
+  ],
+  [
+   "Марка высоколегир",
+   52
+  ],
+  [
+   "Матер.листа нерж.",
+   52
+  ],
+  [
+   "Виконання",
+   52
+  ]
+ ],
+ "samples_bad": [
+  {
+   "kmat": "M331313E9401000",
+   "name": "Лист А5.М 2x1500x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист А5.М 2x1500x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331326E9404010",
+   "name": "Лист АД0.Н2 2Пx1500x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "verbose_label",
+   "rest": [
+    "Лист АД0.Н2 2Пx1500x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331326I9400010",
+   "name": "Лист АД0 4Пx1500x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист АД0 4Пx1500x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331326I9600010",
+   "name": "Лист АД0 4Пx1500x4000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист АД0 4Пx1500x4000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331326K9404010",
+   "name": "Лист АД0.Н2 5Пx1500x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "verbose_label",
+   "rest": [
+    "Лист АД0.Н2 5Пx1500x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331328E6411110",
+   "name": "Лист АД1.А.М 2Пx1200x3000 ГОСТ 21631-76. В",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист АД1.А.М 2Пx1200x3000 ГОСТ 21631-76. В"
+   ]
+  },
+  {
+   "kmat": "M331344M9400000",
+   "name": "Лист АМг5 6x1500x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист АМг5 6x1500x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331344MC400000",
+   "name": "Лист АМг5 6x2000x3000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист АМг5 6x2000x3000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331352E5200000",
+   "name": "Лист Д16 2x1000x2000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист Д16 2x1000x2000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "M331352I5200000",
+   "name": "Лист Д16 4x1000x2000 ГОСТ 21631-76",
+   "group": "M3313",
+   "category": "M3",
+   "matched": 0,
+   "total": 8,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Лист Д16 4x1000x2000 ГОСТ 21631-76"
+   ]
+  },
+  {
+   "kmat": "MD1002113305000",
+   "name": "Пластина 2Ф-I-МБС-С-4 ГОСТ 7338-90",
+   "group": "MD100",
+   "category": "MD",
+   "matched": 0,
+   "total": 7,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Пластина 2Ф-I-МБС-С-4 ГОСТ 7338-90"
+   ]
+  },
+  {
+   "kmat": "MD1002211304000",
+   "name": "Пластина 2Н-I-ТМКЩ-С-3 ГОСТ 7338-90",
+   "group": "MD100",
+   "category": "MD",
+   "matched": 0,
+   "total": 7,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Пластина 2Н-I-ТМКЩ-С-3 ГОСТ 7338-90"
+   ]
+  },
+  {
+   "kmat": "MD1002211305000",
+   "name": "Пластина 2Н-I-ТМКЩ-С-4 ГОСТ 7338-90",
+   "group": "MD100",
+   "category": "MD",
+   "matched": 0,
+   "total": 7,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Пластина 2Н-I-ТМКЩ-С-4 ГОСТ 7338-90"
+   ]
+  },
+  {
+   "kmat": "MD1002211306000",
+   "name": "Пластина 2Н-I-ТМКЩ-С-5 ГОСТ 7338-90",
+   "group": "MD100",
+   "category": "MD",
+   "matched": 0,
+   "total": 7,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Пластина 2Н-I-ТМКЩ-С-5 ГОСТ 7338-90"
+   ]
+  },
+  {
+   "kmat": "MD1000011107000",
+   "name": "Пластина -I-ТМКЩ-М-6 ГОСТ 7338-90",
+   "group": "MD100",
+   "category": "MD",
+   "matched": 0,
+   "total": 6,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Пластина -I-ТМКЩ-М-6 ГОСТ 7338-90"
+   ]
+  },
+  {
+   "kmat": "MD1071238000000",
+   "name": "Шнур 1 - 2С Ø 8 ГОСТ 6467-69",
+   "group": "MD107",
+   "category": "MD",
+   "matched": 0,
+   "total": 6,
+   "primary_cause": "numeric_format",
+   "rest": [
+    "Шнур 1 - 2С Ø 8 ГОСТ 6467-69"
+   ]
+  },
+  {
+   "kmat": "MD107123Q000000",
+   "name": "Шнур 1 - 2С Ø 6 ГОСТ 6467-69",
+   "group": "MD107",
+   "category": "MD",
+   "matched": 0,
+   "total": 6,
+   "primary_cause": "numeric_format",
+   "rest": [
+    "Шнур 1 - 2С Ø 6 ГОСТ 6467-69"
+   ]
+  },
+  {
+   "kmat": "M11111900000000",
+   "name": "Труба 100х4 ГОСТ 3262-75",
+   "group": "M1111",
+   "category": "M1",
+   "matched": 0,
+   "total": 5,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Труба 100х4 ГОСТ 3262-75"
+   ]
+  },
+  {
+   "kmat": "M11112900000000",
+   "name": "Труба 80х4 ГОСТ 3262-75",
+   "group": "M1111",
+   "category": "M1",
+   "matched": 0,
+   "total": 5,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Труба 80х4 ГОСТ 3262-75"
+   ]
+  },
+  {
+   "kmat": "M1111E200000000",
+   "name": "Труба 20х2 ГОСТ 3262-75",
+   "group": "M1111",
+   "category": "M1",
+   "matched": 0,
+   "total": 5,
+   "primary_cause": "absent_in_name",
+   "rest": [
+    "Труба 20х2 ГОСТ 3262-75"
+   ]
+  }
+ ],
+ "examples": {
+  "numeric_format": [
+   {
+    "kmat": "BB1246000000000",
+    "name": "Камень бортовой БВ100.30.15 ГОСТ 6665-91",
+    "facet": "Камни бортовые бетонные",
+    "value": "въездные БВ100.30.15",
+    "short": "въездные БВ100.30.15",
+    "category": "BB",
+    "group": "BB124"
+   },
+   {
+    "kmat": "BB1247100000000",
+    "name": "Камень бортовой БК100.30.18.8 ГОСТ 6665-91",
+    "facet": "Камни бортовые бетонные",
+    "value": "криволинейные БК100.30.18.8",
+    "short": "криволинейные БК100.30.18.8",
+    "category": "BB",
+    "group": "BB124"
+   }
+  ],
+  "verbose_label": [
+   {
+    "kmat": "BB1252000000000",
+    "name": "Камень бортовой 2ГП ГОСТ 6666-81",
+    "facet": "Камни бортовые горн.пор.",
+    "value": "2ГП - прямоугольный",
+    "short": "2ГП",
+    "category": "BB",
+    "group": "BB125"
+   },
+   {
+    "kmat": "BB1256000000000",
+    "name": "Камень бортовой ГПВ ГОСТ 6666-81",
+    "facet": "Камни бортовые горн.пор.",
+    "value": "ГПВ - прямоугольный въездной",
+    "short": "ГПВ",
+    "category": "BB",
+    "group": "BB125"
+   }
+  ],
+  "absent_in_name": [
+   {
+    "kmat": "FU2213100000000",
+    "name": "Пропан-бутан автомобильний ПБА (LPG) зріджений (талони)",
+    "facet": "Вид оплаты/отпуска топлива",
+    "value": "(талоны)",
+    "short": "(талоны)",
+    "category": "FU",
+    "group": "FU221"
+   },
+   {
+    "kmat": "FU2213101Б00000",
+    "name": "Пропан-бутан автомобильний ПБА (LPG) зріджений (талони), м.Біла Церква",
+    "facet": "Вид оплаты/отпуска топлива",
+    "value": "(талоны)",
+    "short": "(талоны)",
+    "category": "FU",
+    "group": "FU221"
+   }
+  ],
+  "should_match": [
+   {
+    "kmat": "M10310420000000",
+    "name": "Катанка 5,0-Ст1сп2 ДСТУ 2770-94 / ГОСТ 30136-95",
+    "facet": "Категория стали",
+    "value": "2",
+    "short": "2",
+    "category": "M1",
+    "group": "M1031"
+   },
+   {
+    "kmat": "M10312910000000",
+    "name": "Катанка 6,0-Ст3пс1 ДСТУ 2770-94 / ГОСТ 30136-95",
+    "facet": "Категория стали",
+    "value": "1",
+    "short": "1",
+    "category": "M1",
+    "group": "M1031"
+   }
+  ],
+  "partial_numeric": [
+   {
+    "kmat": "M108302F3000000",
+    "name": "Круг 4 ГОСТ 7417-75 / 20-В ГОСТ 1051-73",
+    "facet": "Качество поверхности",
+    "value": "В (h10, h11, h12)",
+    "short": "В",
+    "category": "M1",
+    "group": "M1083"
+   },
+   {
+    "kmat": "M108303F3000000",
+    "name": "Круг 5 ГОСТ 7417-75 / 20-В ГОСТ 1051-73",
+    "facet": "Качество поверхности",
+    "value": "В (h10, h11, h12)",
+    "short": "В",
+    "category": "M1",
+    "group": "M1083"
+   }
+  ],
+  "gost_in_value": [
+   {
+    "kmat": "M12410200000002",
+    "name": "Профнастил даховий, Н57-750-0,7 ГОСТ 24045-94",
+    "facet": "Материал профнастила",
+    "value": "оцинкованный лист ГОСТ 14918",
+    "short": "оцинкованный лист ГОСТ 14918",
+    "category": "M1",
+    "group": "M1241"
+   },
+   {
+    "kmat": "M12410A000600A0",
+    "name": "Профнастил RAL 1015 НС20-1150-0,4 6000 ГОСТ 24045-94",
+    "facet": "Материал профнастила",
+    "value": "оцинкованный лист ГОСТ 14918",
+    "short": "оцинкованный лист ГОСТ 14918",
+    "category": "M1",
+    "group": "M1241"
+   }
+  ]
+ }
+}
